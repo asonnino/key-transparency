@@ -1,5 +1,5 @@
 use config::Committee;
-use crypto::KeyPair;
+use crypto::{Digest, KeyPair};
 use log::{debug, warn};
 use messages::ensure;
 use messages::error::{WitnessError, WitnessResult};
@@ -14,6 +14,8 @@ use tokio::sync::mpsc::Receiver;
 pub const STORE_SEQ_ADDR: [u8; 32] = [0; 32];
 /// Storage address of the witness' lock.
 pub const STORE_LOCK_ADDR: [u8; 32] = [1; 32];
+/// Storage address of the latest root commitment known by the witness.
+pub const STORE_ROOT_ADDR: [u8; 32] = [2; 32];
 
 /// Core logic handing publish notifications and certificates.
 pub struct PublishHandler {
@@ -31,6 +33,8 @@ pub struct PublishHandler {
     sequence_number: SequenceNumber,
     /// The notification on which this witness is locked.
     lock: Option<PublishVote>,
+    /// The latest root commitment.
+    root: Digest,
 }
 
 impl PublishHandler {
@@ -41,6 +45,7 @@ impl PublishHandler {
         storage: Storage,
         rx_notification: Receiver<PublishNotification>,
         rx_certificate: Receiver<PublishCertificate>,
+        root: Digest,
     ) {
         tokio::spawn(async move {
             // Read the sequence number and lock from storage.
@@ -66,6 +71,7 @@ impl PublishHandler {
                 rx_certificate,
                 sequence_number,
                 lock,
+                root,
             }
             .run()
             .await
@@ -168,6 +174,9 @@ impl PublishHandler {
                                 self.storage.write(&STORE_LOCK_ADDR, &Vec::default())
                                     .expect("Failed to persist lock");
 
+                                self.root = certificate.root().clone();
+                                self.storage.write(&STORE_ROOT_ADDR, &self.root.as_ref())
+                                    .expect("Failed to persist root commitment");
                             } else {
                                 debug!("Already processed {:?}", certificate);
                             }
