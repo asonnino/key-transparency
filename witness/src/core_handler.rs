@@ -1,36 +1,36 @@
-use crate::ensure;
-use crate::error::{WitnessError, WitnessResult};
 use config::Committee;
 use crypto::KeyPair;
 use log::{debug, warn};
-use messages::update::{
-    Digestible, SequenceNumber, UpdateCertificate, UpdateNotification, UpdateVote,
+use messages::ensure;
+use messages::error::{WitnessError, WitnessResult};
+use messages::publish::{
+    PublishCertificate, PublishMessage, PublishNotification, PublishVote, SequenceNumber,
 };
 use tokio::sync::mpsc::Receiver;
 
-/// Core logic handing update notifications and certificates.
-pub struct UpdateHandler {
+/// Core logic handing publish notifications and certificates.
+pub struct PublishHandler {
     /// The keypair of this authority.
     keypair: KeyPair,
     /// The committee information.
     committee: Committee,
-    /// Receive update notifications from the IdP.
-    rx_notification: Receiver<UpdateNotification>,
-    /// Receive update certificates from the IdP.
-    rx_certificate: Receiver<UpdateCertificate>,
+    /// Receive publish notifications from the IdP.
+    rx_notification: Receiver<PublishNotification>,
+    /// Receive publish certificates from the IdP.
+    rx_certificate: Receiver<PublishCertificate>,
     /// The current sequence number.
     sequence_number: SequenceNumber,
     /// The notification on which this witness is locked.
-    lock: Option<UpdateVote>,
+    lock: Option<PublishVote>,
 }
 
-impl UpdateHandler {
-    /// Spawn a new update handler task.
+impl PublishHandler {
+    /// Spawn a new publish handler task.
     pub fn spawn(
         keypair: KeyPair,
         committee: Committee,
-        rx_notification: Receiver<UpdateNotification>,
-        rx_certificate: Receiver<UpdateCertificate>,
+        rx_notification: Receiver<PublishNotification>,
+        rx_certificate: Receiver<PublishCertificate>,
     ) {
         tokio::spawn(async move {
             // TODO: Read the sequence number and lock from storage.
@@ -51,8 +51,8 @@ impl UpdateHandler {
         });
     }
 
-    /// Try to vote for an update notification.
-    fn make_vote(&self, notification: &UpdateNotification) -> WitnessResult<UpdateVote> {
+    /// Try to vote for a publish notification.
+    fn make_vote(&self, notification: &PublishNotification) -> WitnessResult<PublishVote> {
         // Verify the notification.
         notification.verify(&self.committee)?;
 
@@ -77,12 +77,12 @@ impl UpdateHandler {
                 );
                 Ok(vote.clone())
             }
-            None => Ok(UpdateVote::new(notification, &self.keypair)),
+            None => Ok(PublishVote::new(notification, &self.keypair)),
         }
     }
 
-    /// Process an update certificate.
-    fn process_certificate(&self, certificate: &UpdateCertificate) -> WitnessResult<()> {
+    /// Process a publish certificate.
+    fn process_certificate(&self, certificate: &PublishCertificate) -> WitnessResult<()> {
         // Verify the certificate's validity.
         certificate.verify(&self.committee)?;
 
@@ -98,7 +98,7 @@ impl UpdateHandler {
     async fn run(&mut self) {
         loop {
             tokio::select! {
-                // Receive update notifications.
+                // Receive publish notifications.
                 Some(notification) = self.rx_notification.recv() => {
                     debug!("Received {:?}", notification);
                     match self.make_vote(&notification) {
@@ -121,7 +121,7 @@ impl UpdateHandler {
                     }
                 },
 
-                // Receive update certificates.
+                // Receive publish certificates.
                 Some(certificate) = self.rx_certificate.recv() => {
                     debug!("Received {:?}", certificate);
                     match self.process_certificate(&certificate) {
@@ -135,7 +135,7 @@ impl UpdateHandler {
                             if self.sequence_number == certificate.sequence_number() {
                                 debug!("Processing {:?}", certificate);
 
-                                // Update the witness state.
+                                // Publish the witness state.
                                 self.sequence_number += 1;
                                 self.lock = None;
                                 // TODO: persist the state.

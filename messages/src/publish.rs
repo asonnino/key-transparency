@@ -18,7 +18,7 @@ pub type Item = u64;
 pub type SequenceNumber = u64;
 
 /// A message that can be hashed.
-pub trait Digestible {
+pub trait PublishMessage {
     /// Return a reference to the root commitment.
     fn root(&self) -> &Digest;
 
@@ -34,24 +34,24 @@ pub trait Digestible {
     }
 }
 
-/// An update notification sent by the IdP to the witnesses to request votes.
+/// An publish notification sent by the IdP to the witnesses to request votes.
 #[derive(Serialize, Deserialize)]
-pub struct UpdateNotification {
+pub struct PublishNotification {
     /// The root committing to the new state.
     root: Digest,
-    /// The state-transition proof ensuring the state update is valid.
+    /// The state-transition proof ensuring the state publish is valid.
     proof: Proof,
     /// The item changing the state.
     items: Vec<Item>,
-    /// The sequence number unique to this update notification.
+    /// The sequence number unique to this publish notification.
     sequence_number: SequenceNumber,
-    /// The hash of the previous fields of this update.
+    /// The hash of the previous fields of this publish.
     id: Digest,
-    /// A signature from the IdP authenticating the update.
+    /// A signature from the IdP authenticating the publish.
     signature: Signature,
 }
 
-impl std::fmt::Debug for UpdateNotification {
+impl std::fmt::Debug for PublishNotification {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         write!(
             f,
@@ -69,7 +69,7 @@ impl std::fmt::Debug for UpdateNotification {
     }
 }
 
-impl Digestible for UpdateNotification {
+impl PublishMessage for PublishNotification {
     fn root(&self) -> &Digest {
         &self.root
     }
@@ -79,8 +79,8 @@ impl Digestible for UpdateNotification {
     }
 }
 
-impl UpdateNotification {
-    /// Create a new UpdateNotification signed by the IdP.
+impl PublishNotification {
+    /// Create a new PublishNotification signed by the IdP.
     pub fn new(
         root: Digest,
         proof: Proof,
@@ -105,7 +105,7 @@ impl UpdateNotification {
         }
     }
 
-    /// Verify an update notification (very CPU-intensive).
+    /// Verify a publish notification (very CPU-intensive).
     pub fn verify(&self, committee: &Committee) -> MessageResult<()> {
         // Ensure the id is well formed.
         ensure!(
@@ -113,7 +113,7 @@ impl UpdateNotification {
             MessageError::MalformedNotificationId(self.id.clone())
         );
 
-        // Verify the signature on the update notification
+        // Verify the signature on the publish notification
         self.signature
             .verify(&self.id, &committee.identity_provider)?;
 
@@ -122,12 +122,12 @@ impl UpdateNotification {
     }
 }
 
-/// A vote for an update notification.
+/// A vote for a publish notification.
 #[derive(Serialize, Deserialize, Clone)]
-pub struct UpdateVote {
-    /// The root commitment of the update notification.
+pub struct PublishVote {
+    /// The root commitment of the publish notification.
     root: Digest,
-    /// The sequence number of the update notification.
+    /// The sequence number of the publish notification.
     sequence_number: SequenceNumber,
     /// The witness creating the vote.
     author: PublicKey,
@@ -135,7 +135,7 @@ pub struct UpdateVote {
     signature: Signature,
 }
 
-impl std::fmt::Debug for UpdateVote {
+impl std::fmt::Debug for PublishVote {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
         write!(
             f,
@@ -148,7 +148,7 @@ impl std::fmt::Debug for UpdateVote {
     }
 }
 
-impl Digestible for UpdateVote {
+impl PublishMessage for PublishVote {
     fn root(&self) -> &Digest {
         &self.root
     }
@@ -158,9 +158,9 @@ impl Digestible for UpdateVote {
     }
 }
 
-impl UpdateVote {
-    /// Create a new vote for an update notification (signed by a witness).
-    pub fn new(notification: &UpdateNotification, keypair: &KeyPair) -> Self {
+impl PublishVote {
+    /// Create a new vote for a publish notification (signed by a witness).
+    pub fn new(notification: &PublishNotification, keypair: &KeyPair) -> Self {
         let vote = Self {
             root: notification.root.clone(),
             sequence_number: notification.sequence_number,
@@ -188,18 +188,18 @@ impl UpdateVote {
     }
 }
 
-/// A certificate over an update notification.
+/// A certificate over a publish notification.
 #[derive(Serialize, Deserialize)]
-pub struct UpdateCertificate {
+pub struct PublishCertificate {
     /// The root commitment of the certified notification.
     root: Digest,
-    /// The sequence number of the update notification.
+    /// The sequence number of the publish notification.
     sequence_number: SequenceNumber,
     /// The quorum of votes making the certificate.
     votes: Vec<(PublicKey, Signature)>,
 }
 
-impl std::fmt::Debug for UpdateCertificate {
+impl std::fmt::Debug for PublishCertificate {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
         write!(
             f,
@@ -211,7 +211,7 @@ impl std::fmt::Debug for UpdateCertificate {
     }
 }
 
-impl Digestible for UpdateCertificate {
+impl PublishMessage for PublishCertificate {
     fn root(&self) -> &Digest {
         &self.root
     }
@@ -221,7 +221,7 @@ impl Digestible for UpdateCertificate {
     }
 }
 
-impl UpdateCertificate {
+impl PublishCertificate {
     /// Verify that certificate.
     pub fn verify(&self, committee: &Committee) -> MessageResult<()> {
         // Ensure the certificate has a quorum.

@@ -1,5 +1,4 @@
 use crypto::{KeyPair, PublicKey};
-use log::info;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
