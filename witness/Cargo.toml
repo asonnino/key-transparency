@@ -1,0 +1,13 @@
+[package]
+name = "witness"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+tokio = { version = "1.15.0", features = ["rt", "sync", "macros"] }
+log = "0.4.14"
+thiserror = "1.0.30"
+
+crypto = { path = "../crypto" }
+config = { path = "../config" }
+messages = { path = "../messages" }

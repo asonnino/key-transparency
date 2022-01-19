@@ -1,0 +1,12 @@
+[package]
+name = "messages"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+ed25519-dalek = "1.0.1"
+thiserror = "1.0.30"
+serde = { version = "1.0.133", features = ["derive"] }
+
+crypto = { path = "../crypto" }
+config = { path = "../config" }
