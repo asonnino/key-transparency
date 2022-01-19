@@ -6,7 +6,14 @@ use messages::error::{WitnessError, WitnessResult};
 use messages::publish::{
     PublishCertificate, PublishMessage, PublishNotification, PublishVote, SequenceNumber,
 };
+use std::convert::TryInto;
+use storage::Storage;
 use tokio::sync::mpsc::Receiver;
+
+/// Storage address of the sequence number.
+pub const STORE_SEQ_ADDR: [u8; 32] = [0; 32];
+/// Storage address of the witness' lock.
+pub const STORE_LOCK_ADDR: [u8; 32] = [1; 32];
 
 /// Core logic handing publish notifications and certificates.
 pub struct PublishHandler {
@@ -14,6 +21,8 @@ pub struct PublishHandler {
     keypair: KeyPair,
     /// The committee information.
     committee: Committee,
+    /// The persistent storage.
+    storage: Storage,
     /// Receive publish notifications from the IdP.
     rx_notification: Receiver<PublishNotification>,
     /// Receive publish certificates from the IdP.
@@ -29,18 +38,30 @@ impl PublishHandler {
     pub fn spawn(
         keypair: KeyPair,
         committee: Committee,
+        storage: Storage,
         rx_notification: Receiver<PublishNotification>,
         rx_certificate: Receiver<PublishCertificate>,
     ) {
         tokio::spawn(async move {
-            // TODO: Read the sequence number and lock from storage.
-            let sequence_number = 0;
-            let lock = None;
+            // Read the sequence number and lock from storage.
+            let sequence_number = storage
+                .read(&STORE_SEQ_ADDR)
+                .expect("Failed to load sequence number from storage")
+                .map(|bytes| {
+                    let x = bytes.try_into().expect("Sequence number should be 8 bytes");
+                    SequenceNumber::from_le_bytes(x)
+                })
+                .unwrap_or_default();
+            let lock = storage
+                .read(&STORE_LOCK_ADDR)
+                .expect("Failed to load lock from storage")
+                .map(|bytes| bincode::deserialize(&bytes).expect("Failed to deserialize vote"));
 
             // Run an instance of the handler.
             Self {
                 keypair,
                 committee,
+                storage,
                 rx_notification,
                 rx_certificate,
                 sequence_number,
@@ -110,10 +131,13 @@ impl PublishHandler {
                         },
                         Ok(vote) => {
                             debug!("Create {:?}", vote);
+                            let serialized_vote = bincode::serialize(&vote)
+                                .expect("Failed to serialize vote");
 
                             // Register the lock.
                             self.lock = Some(vote);
-                            // TODO: persist the lock.
+                            self.storage.write(&STORE_LOCK_ADDR, &serialized_vote)
+                                .expect("Failed to persist lock");
 
                             // Reply with a vote.
                             unimplemented!();
@@ -135,10 +159,15 @@ impl PublishHandler {
                             if self.sequence_number == certificate.sequence_number() {
                                 debug!("Processing {:?}", certificate);
 
-                                // Publish the witness state.
+                                // Update the witness state.
                                 self.sequence_number += 1;
+                                self.storage.write(&STORE_SEQ_ADDR, &self.sequence_number.to_le_bytes())
+                                    .expect("Failed to persist sequence number");
+
                                 self.lock = None;
-                                // TODO: persist the state.
+                                self.storage.write(&STORE_LOCK_ADDR, &Vec::default())
+                                    .expect("Failed to persist lock");
+
                             } else {
                                 debug!("Already processed {:?}", certificate);
                             }
