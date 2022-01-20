@@ -198,7 +198,7 @@ impl Signature {
         let mut signatures: Vec<dalek::Signature> = Vec::new();
         let mut public_keys: Vec<dalek::PublicKey> = Vec::new();
         for (addr, sig) in votes.into_iter() {
-            messages.push(&value.as_ref()[..]);
+            messages.push(value.as_ref());
             signatures.push(sig.0);
             public_keys.push(dalek::PublicKey::from_bytes(&addr.0)?);
         }

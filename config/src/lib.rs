@@ -74,7 +74,7 @@ impl Committee {
     /// Return the voting power of a specific witness.
     pub fn voting_power(&self, name: &PublicKey) -> VotingPower {
         self.witnesses
-            .get(&name)
+            .get(name)
             .map_or_else(|| 0, |x| x.voting_power)
     }
 
@@ -103,7 +103,7 @@ impl Committee {
     pub fn witnesses_addresses(&self) -> Vec<(PublicKey, SocketAddr)> {
         self.witnesses
             .iter()
-            .map(|(name, witness)| (*name, witness.address.clone()))
+            .map(|(name, witness)| (*name, witness.address))
             .collect()
     }
 }
@@ -115,6 +115,12 @@ pub struct PrivateConfig {
     public: PublicKey,
     /// The private key of this entity.
     secret: KeyPair,
+}
+
+impl Default for PrivateConfig {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl PrivateConfig {
