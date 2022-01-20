@@ -64,8 +64,7 @@ impl std::fmt::Debug for PublishNotification {
                 .map(|x| format!("{}", x))
                 .collect::<Vec<_>>()
                 .join(",")
-        )?;
-        Ok(())
+        )
     }
 }
 

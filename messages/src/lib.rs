@@ -1,5 +1,6 @@
 pub mod error;
 pub mod publish;
+pub mod sync;
 
 use error::WitnessResult;
 use publish::{PublishCertificate, PublishNotification, PublishVote};
