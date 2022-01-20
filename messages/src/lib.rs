@@ -7,6 +7,9 @@ use publish::{PublishCertificate, PublishNotification, PublishVote};
 use serde::{Deserialize, Serialize};
 use sync::{PublishCertificateRequest, State};
 
+/// Alias for serialized publish certificates.
+pub type SerializedPublishCertificate = Vec<u8>;
+
 /// Messages sent by the IdP to the witnesses.
 #[derive(Serialize, Deserialize, Debug)]
 pub enum IdPtoWitnessMessage {
@@ -21,5 +24,5 @@ pub enum IdPtoWitnessMessage {
 pub enum WitnessToIdPMessage {
     PublishVote(WitnessResult<PublishVote>),
     State(WitnessResult<State>),
-    PublishCertificateResponse(Vec<u8>),
+    PublishCertificateResponse(SerializedPublishCertificate),
 }

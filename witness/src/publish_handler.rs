@@ -3,11 +3,13 @@ use config::Committee;
 use crypto::KeyPair;
 use log::{debug, warn};
 use messages::error::{WitnessError, WitnessResult};
-use messages::publish::{PublishCertificate, PublishMessage, PublishNotification, PublishVote};
+use messages::publish::{
+    PublishCertificate, PublishMessage, PublishNotification, PublishVote, SequenceNumber,
+};
 use messages::sync::State;
-use messages::{ensure, WitnessToIdPMessage};
+use messages::{ensure, SerializedPublishCertificate, WitnessToIdPMessage};
 use storage::Storage;
-use tokio::sync::mpsc::Receiver;
+use tokio::sync::mpsc::{Receiver, Sender};
 
 /// Storage address of the state.
 pub const STORE_STATE_ADDR: [u8; 32] = [255; 32];
@@ -23,9 +25,11 @@ pub struct PublishHandler {
     /// Receive publish notifications from the IdP.
     rx_notification: Receiver<(PublishNotification, Replier)>,
     /// Receive publish certificates from the IdP.
-    rx_certificate: Receiver<(PublishCertificate, Replier)>,
+    rx_certificate: Receiver<(SerializedPublishCertificate, PublishCertificate, Replier)>,
     /// Receive state queries from the IdP.
     rx_state_query: Receiver<Replier>,
+    /// Outputs processed (thus verified) publish certificates.
+    tx_processed_certificate: Sender<(SerializedPublishCertificate, SequenceNumber)>,
     /// The state of the witness.
     state: State,
 }
@@ -37,8 +41,9 @@ impl PublishHandler {
         committee: Committee,
         storage: Storage,
         rx_notification: Receiver<(PublishNotification, Replier)>,
-        rx_certificate: Receiver<(PublishCertificate, Replier)>,
+        rx_certificate: Receiver<(SerializedPublishCertificate, PublishCertificate, Replier)>,
         rx_state_query: Receiver<Replier>,
+        tx_processed_certificate: Sender<(SerializedPublishCertificate, SequenceNumber)>,
     ) {
         tokio::spawn(async move {
             // Try to load the state from storage.
@@ -56,6 +61,7 @@ impl PublishHandler {
                 rx_notification,
                 rx_certificate,
                 rx_state_query,
+                tx_processed_certificate,
                 state,
             }
             .run()
@@ -138,7 +144,7 @@ impl PublishHandler {
                 },
 
                 // Receive publish certificates.
-                Some((certificate, replier)) = self.rx_certificate.recv() => {
+                Some((serialized, certificate, replier)) = self.rx_certificate.recv() => {
                     debug!("Received {:?}", certificate);
                     let reply = match self.process_certificate(&certificate) {
                         Err(e) => {
@@ -160,6 +166,13 @@ impl PublishHandler {
                                     .expect("Failed to serialize state");
                                 self.storage.write(&STORE_STATE_ADDR, &serialized_state)
                                     .expect("Failed to persist state");
+
+                                // Send the serialized certificate to the sync helper.
+                                self
+                                    .tx_processed_certificate
+                                    .send((serialized, certificate.sequence_number()))
+                                    .await
+                                    .expect("Failed to send certificate to sync helper");
                             } else {
                                 debug!("Already processed {:?}", certificate);
                             }

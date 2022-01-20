@@ -11,13 +11,14 @@ use futures::sink::SinkExt;
 use log::info;
 use messages::publish::{PublishCertificate, PublishNotification};
 use messages::sync::PublishCertificateRequest;
-use messages::{IdPtoWitnessMessage, WitnessToIdPMessage};
+use messages::{IdPtoWitnessMessage, SerializedPublishCertificate, WitnessToIdPMessage};
 use network::receiver::{MessageHandler, Receiver as NetworkReceiver, Writer};
 use std::error::Error;
 use storage::Storage;
 use tokio::sync::mpsc::{channel, Sender};
 use tokio::sync::oneshot;
 
+/// The default size of inter-tasks channels.
 pub(crate) const DEFAULT_CHANNEL_SIZE: usize = 1_000;
 
 /// One-shot channel to reply to the IdP.
@@ -40,6 +41,7 @@ pub fn spawn_witness(
     let (tx_certificate, rx_certificate) = channel(DEFAULT_CHANNEL_SIZE);
     let (tx_state_query, rx_state_query) = channel(DEFAULT_CHANNEL_SIZE);
     let (tx_certificate_request, rx_certificate_request) = channel(DEFAULT_CHANNEL_SIZE);
+    let (tx_processed_certificate, rx_processed_certificate) = channel(DEFAULT_CHANNEL_SIZE);
 
     // Spawn the publish handler. This task handles all publish-related messages.
     PublishHandler::spawn(
@@ -49,10 +51,15 @@ pub fn spawn_witness(
         rx_notification,
         rx_certificate,
         rx_state_query,
+        tx_processed_certificate,
     );
 
     // Spawn the sync helper. This task replies to sync request helping other witness to get up to speed.
-    SyncHelper::spawn(audit_storage, rx_certificate_request);
+    SyncHelper::spawn(
+        audit_storage,
+        rx_processed_certificate,
+        rx_certificate_request,
+    );
 
     // Spawn a network receiver.
     let address = committee
@@ -73,7 +80,7 @@ pub fn spawn_witness(
 #[derive(Clone)]
 struct WitnessHandler {
     tx_notification: Sender<(PublishNotification, Replier)>,
-    tx_certificate: Sender<(PublishCertificate, Replier)>,
+    tx_certificate: Sender<(SerializedPublishCertificate, PublishCertificate, Replier)>,
     tx_state_query: Sender<Replier>,
     tx_certificate_request: Sender<(PublishCertificateRequest, Replier)>,
 }
@@ -92,7 +99,7 @@ impl MessageHandler for WitnessHandler {
                 .expect("Failed to send publish notification to publish handler"),
             IdPtoWitnessMessage::PublishCertificate(certificate) => self
                 .tx_certificate
-                .send((certificate, sender))
+                .send((serialized.to_vec(), certificate, sender))
                 .await
                 .expect("Failed to send publish certificate to publish handler"),
             IdPtoWitnessMessage::StateQuery => self
