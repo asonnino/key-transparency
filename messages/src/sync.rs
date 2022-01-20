@@ -26,6 +26,7 @@ impl std::fmt::Debug for State {
 }
 
 /// Request of a publish certificate request.
+#[derive(Serialize, Deserialize)]
 pub struct PublishCertificateRequest {
     /// The sequence number of the requested certificate.
     pub sequence_number: SequenceNumber,

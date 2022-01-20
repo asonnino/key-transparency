@@ -95,7 +95,12 @@ impl Committee {
     }
 
     /// Returns the addresses of all witnesses.
-    pub fn others_primaries(&self) -> Vec<(PublicKey, SocketAddr)> {
+    pub fn witness_address(&self, name: &PublicKey) -> Option<SocketAddr> {
+        self.witnesses.get(name).map(|witness| witness.address)
+    }
+
+    /// Returns the addresses of all witnesses.
+    pub fn witnesses_addresses(&self) -> Vec<(PublicKey, SocketAddr)> {
         self.witnesses
             .iter()
             .map(|(name, witness)| (*name, witness.address.clone()))

@@ -3,16 +3,17 @@ pub mod publish;
 pub mod sync;
 
 use error::WitnessResult;
-use publish::{PublishCertificate, PublishNotification, PublishVote, SequenceNumber};
+use publish::{PublishCertificate, PublishNotification, PublishVote};
 use serde::{Deserialize, Serialize};
-use sync::State;
+use sync::{PublishCertificateRequest, State};
 
 /// Messages sent by the IdP to the witnesses.
 #[derive(Serialize, Deserialize, Debug)]
 pub enum IdPtoWitnessMessage {
     PublishNotification(PublishNotification),
     PublishCertificate(PublishCertificate),
-    PublishCertificateQuery(SequenceNumber),
+    StateQuery,
+    PublishCertificateQuery(PublishCertificateRequest),
 }
 
 /// Replies sent by the witnesses to the IdP.
