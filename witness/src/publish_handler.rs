@@ -1,21 +1,16 @@
+use crate::Replier;
 use config::Committee;
-use crypto::{Digest, KeyPair};
+use crypto::KeyPair;
 use log::{debug, warn};
-use messages::ensure;
 use messages::error::{WitnessError, WitnessResult};
-use messages::publish::{
-    PublishCertificate, PublishMessage, PublishNotification, PublishVote, SequenceNumber,
-};
-use std::convert::TryInto;
+use messages::publish::{PublishCertificate, PublishMessage, PublishNotification, PublishVote};
+use messages::sync::State;
+use messages::{ensure, WitnessToIdPMessage};
 use storage::Storage;
 use tokio::sync::mpsc::Receiver;
 
-/// Storage address of the sequence number.
-pub const STORE_SEQ_ADDR: [u8; 32] = [0; 32];
-/// Storage address of the witness' lock.
-pub const STORE_LOCK_ADDR: [u8; 32] = [1; 32];
-/// Storage address of the latest root commitment known by the witness.
-pub const STORE_ROOT_ADDR: [u8; 32] = [2; 32];
+/// Storage address of the state.
+pub const STORE_STATE_ADDR: [u8; 32] = [255; 32];
 
 /// Core logic handing publish notifications and certificates.
 pub struct PublishHandler {
@@ -26,15 +21,13 @@ pub struct PublishHandler {
     /// The persistent storage.
     storage: Storage,
     /// Receive publish notifications from the IdP.
-    rx_notification: Receiver<PublishNotification>,
+    rx_notification: Receiver<(PublishNotification, Replier)>,
     /// Receive publish certificates from the IdP.
-    rx_certificate: Receiver<PublishCertificate>,
-    /// The current sequence number.
-    sequence_number: SequenceNumber,
-    /// The notification on which this witness is locked.
-    lock: Option<PublishVote>,
-    /// The latest root commitment.
-    root: Digest,
+    rx_certificate: Receiver<(PublishCertificate, Replier)>,
+    /// Receive state queries from the IdP.
+    rx_state_query: Receiver<Replier>,
+    /// The state of the witness.
+    state: State,
 }
 
 impl PublishHandler {
@@ -43,24 +36,17 @@ impl PublishHandler {
         keypair: KeyPair,
         committee: Committee,
         storage: Storage,
-        rx_notification: Receiver<PublishNotification>,
-        rx_certificate: Receiver<PublishCertificate>,
-        root: Digest,
+        rx_notification: Receiver<(PublishNotification, Replier)>,
+        rx_certificate: Receiver<(PublishCertificate, Replier)>,
+        rx_state_query: Receiver<Replier>,
     ) {
         tokio::spawn(async move {
-            // Read the sequence number and lock from storage.
-            let sequence_number = storage
-                .read(&STORE_SEQ_ADDR)
-                .expect("Failed to load sequence number from storage")
-                .map(|bytes| {
-                    let x = bytes.try_into().expect("Sequence number should be 8 bytes");
-                    SequenceNumber::from_le_bytes(x)
-                })
+            // Try to load the state from storage.
+            let state = storage
+                .read(&STORE_STATE_ADDR)
+                .expect("Failed to load state from storage")
+                .map(|bytes| bincode::deserialize(&bytes).expect("Failed to deserialize state"))
                 .unwrap_or_default();
-            let lock = storage
-                .read(&STORE_LOCK_ADDR)
-                .expect("Failed to load lock from storage")
-                .map(|bytes| bincode::deserialize(&bytes).expect("Failed to deserialize vote"));
 
             // Run an instance of the handler.
             Self {
@@ -69,9 +55,8 @@ impl PublishHandler {
                 storage,
                 rx_notification,
                 rx_certificate,
-                sequence_number,
-                lock,
-                root,
+                rx_state_query,
+                state,
             }
             .run()
             .await
@@ -85,15 +70,15 @@ impl PublishHandler {
 
         // Check the sequence number.
         ensure!(
-            self.sequence_number == notification.sequence_number(),
+            self.state.sequence_number == notification.sequence_number(),
             WitnessError::UnexpectedSequenceNumber {
-                expected: self.sequence_number,
+                expected: self.state.sequence_number,
                 got: notification.sequence_number()
             }
         );
 
         // Ensure there are no locks.
-        match self.lock.as_ref() {
+        match self.state.lock.as_ref() {
             Some(vote) => {
                 ensure!(
                     vote.root() == notification.root(),
@@ -115,8 +100,8 @@ impl PublishHandler {
 
         // Ensure the witness is not missing previous certificates.
         ensure!(
-            self.sequence_number >= certificate.sequence_number(),
-            WitnessError::MissingEarlierCertificates(self.sequence_number)
+            self.state.sequence_number >= certificate.sequence_number(),
+            WitnessError::MissingEarlierCertificates(self.state.sequence_number)
         );
         Ok(())
     }
@@ -126,65 +111,70 @@ impl PublishHandler {
         loop {
             tokio::select! {
                 // Receive publish notifications.
-                Some(notification) = self.rx_notification.recv() => {
+                Some((notification, replier)) = self.rx_notification.recv() => {
                     debug!("Received {:?}", notification);
-                    match self.make_vote(&notification) {
+                    let reply = match self.make_vote(&notification) {
                         Err(e) => {
                             warn!("{}", e);
 
                             // Reply with an error message.
-                            unimplemented!();
+                            WitnessToIdPMessage::PublishVote(Err(e))
                         },
                         Ok(vote) => {
                             debug!("Create {:?}", vote);
-                            let serialized_vote = bincode::serialize(&vote)
-                                .expect("Failed to serialize vote");
 
                             // Register the lock.
-                            self.lock = Some(vote);
-                            self.storage.write(&STORE_LOCK_ADDR, &serialized_vote)
-                                .expect("Failed to persist lock");
+                            self.state.lock = Some(vote.clone());
+                            let serialized_state = bincode::serialize(&self.state)
+                                .expect("Failed to serialize state");
+                            self.storage.write(&STORE_STATE_ADDR, &serialized_state)
+                                .expect("Failed to persist state");
 
                             // Reply with a vote.
-                            unimplemented!();
+                            WitnessToIdPMessage::PublishVote(Ok(vote))
                         }
-                    }
+                    };
+                    replier.send(reply).expect("Failed to reply to notification");
                 },
 
                 // Receive publish certificates.
-                Some(certificate) = self.rx_certificate.recv() => {
+                Some((certificate, replier)) = self.rx_certificate.recv() => {
                     debug!("Received {:?}", certificate);
-                    match self.process_certificate(&certificate) {
+                    let reply = match self.process_certificate(&certificate) {
                         Err(e) => {
                             warn!("{}", e);
 
                             // Reply with an error message.
-                            unimplemented!();
+                            WitnessToIdPMessage::State(Err(e))
                         },
                         Ok(()) => {
-                            if self.sequence_number == certificate.sequence_number() {
+                            if self.state.sequence_number == certificate.sequence_number() {
                                 debug!("Processing {:?}", certificate);
 
                                 // Update the witness state.
-                                self.sequence_number += 1;
-                                self.storage.write(&STORE_SEQ_ADDR, &self.sequence_number.to_le_bytes())
-                                    .expect("Failed to persist sequence number");
+                                self.state.root = certificate.root().clone();
+                                self.state.sequence_number += 1;
+                                self.state.lock = None;
 
-                                self.lock = None;
-                                self.storage.write(&STORE_LOCK_ADDR, &Vec::default())
-                                    .expect("Failed to persist lock");
-
-                                self.root = certificate.root().clone();
-                                self.storage.write(&STORE_ROOT_ADDR, &self.root.as_ref())
-                                    .expect("Failed to persist root commitment");
+                                let serialized_state = bincode::serialize(&self.state)
+                                    .expect("Failed to serialize state");
+                                self.storage.write(&STORE_STATE_ADDR, &serialized_state)
+                                    .expect("Failed to persist state");
                             } else {
                                 debug!("Already processed {:?}", certificate);
                             }
 
                             // Reply with an acknowledgement.
-                            unimplemented!();
+                            WitnessToIdPMessage::State(Ok(self.state.clone()))
                         }
-                    }
+                    };
+                    replier.send(reply).expect("Failed to reply to certificate");
+                }
+
+                // Receive state queries.
+                Some(replier) = self.rx_state_query.recv() => {
+                    let reply =  WitnessToIdPMessage::State(Ok(self.state.clone()));
+                    replier.send(reply).expect("Failed to reply to state query");
                 }
             }
         }
