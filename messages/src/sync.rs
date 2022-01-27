@@ -24,14 +24,23 @@ impl std::fmt::Debug for State {
     }
 }
 
+// Useful for tests.
+impl PartialEq for State {
+    fn eq(&self, other: &Self) -> bool {
+        self.root == other.root
+            && self.sequence_number == other.sequence_number
+            && self.lock == other.lock
+    }
+}
+
 /// Request of a publish certificate request.
 #[derive(Serialize, Deserialize)]
-pub struct PublishCertificateRequest {
+pub struct PublishCertificateQuery {
     /// The sequence number of the requested certificate.
     pub sequence_number: SequenceNumber,
 }
 
-impl std::fmt::Debug for PublishCertificateRequest {
+impl std::fmt::Debug for PublishCertificateQuery {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         write!(f, "CertRequest({})", self.sequence_number)
     }

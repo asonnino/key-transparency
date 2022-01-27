@@ -11,8 +11,8 @@ use futures::sink::SinkExt;
 use log::info;
 use messages::error::MessageError;
 use messages::publish::{PublishCertificate, PublishNotification};
-use messages::sync::PublishCertificateRequest;
-use messages::{IdPToWitnessMessage, SerializedPublishCertificate, WitnessToIdPMessage};
+use messages::sync::PublishCertificateQuery;
+use messages::{IdPToWitnessMessage, SerializedPublishCertificateMessage, WitnessToIdPMessage};
 use network::receiver::{MessageHandler, Receiver as NetworkReceiver, Writer};
 use std::error::Error;
 use storage::Storage;
@@ -81,9 +81,13 @@ pub fn spawn_witness(
 #[derive(Clone)]
 struct WitnessHandler {
     tx_notification: Sender<(PublishNotification, Replier)>,
-    tx_certificate: Sender<(SerializedPublishCertificate, PublishCertificate, Replier)>,
+    tx_certificate: Sender<(
+        SerializedPublishCertificateMessage,
+        PublishCertificate,
+        Replier,
+    )>,
     tx_state_query: Sender<Replier>,
-    tx_certificate_request: Sender<(PublishCertificateRequest, Replier)>,
+    tx_certificate_request: Sender<(PublishCertificateQuery, Replier)>,
 }
 
 #[async_trait]
@@ -108,9 +112,9 @@ impl MessageHandler for WitnessHandler {
                 .send(sender)
                 .await
                 .expect("Failed to send state query to publish handler"),
-            IdPToWitnessMessage::PublishCertificateQuery(request) => self
+            IdPToWitnessMessage::PublishCertificateQuery(query) => self
                 .tx_certificate_request
-                .send((request, sender))
+                .send((query, sender))
                 .await
                 .expect("Failed to certificate query query to sync helper"),
         }

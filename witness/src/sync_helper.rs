@@ -1,7 +1,7 @@
 use crate::Replier;
 use messages::publish::SequenceNumber;
-use messages::sync::PublishCertificateRequest;
-use messages::{SerializedPublishCertificate, WitnessToIdPMessage};
+use messages::sync::PublishCertificateQuery;
+use messages::{SerializedPublishCertificateMessage, WitnessToIdPMessage};
 use storage::Storage;
 use tokio::sync::mpsc::Receiver;
 
@@ -10,17 +10,17 @@ pub struct SyncHelper {
     /// The persistent storage.
     storage: Storage,
     /// Received serialized publish certificates once processed by the publish handler.
-    rx_processed_certificate: Receiver<(SerializedPublishCertificate, SequenceNumber)>,
+    rx_processed_certificate: Receiver<(SerializedPublishCertificateMessage, SequenceNumber)>,
     /// Receive the publish certificates requests.
-    rx_certificate_request: Receiver<(PublishCertificateRequest, Replier)>,
+    rx_certificate_request: Receiver<(PublishCertificateQuery, Replier)>,
 }
 
 impl SyncHelper {
     /// Spawn a new sync helper task.
     pub fn spawn(
         storage: Storage,
-        rx_processed_certificate: Receiver<(SerializedPublishCertificate, SequenceNumber)>,
-        rx_certificate_request: Receiver<(PublishCertificateRequest, Replier)>,
+        rx_processed_certificate: Receiver<(SerializedPublishCertificateMessage, SequenceNumber)>,
+        rx_certificate_request: Receiver<(PublishCertificateQuery, Replier)>,
     ) {
         tokio::spawn(async move {
             Self {

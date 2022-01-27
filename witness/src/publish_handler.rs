@@ -7,7 +7,7 @@ use messages::publish::{
     PublishCertificate, PublishMessage, PublishNotification, PublishVote, SequenceNumber,
 };
 use messages::sync::State;
-use messages::{ensure, SerializedPublishCertificate, WitnessToIdPMessage};
+use messages::{ensure, SerializedPublishCertificateMessage, WitnessToIdPMessage};
 use storage::Storage;
 use tokio::sync::mpsc::{Receiver, Sender};
 
@@ -25,11 +25,15 @@ pub struct PublishHandler {
     /// Receive publish notifications from the IdP.
     rx_notification: Receiver<(PublishNotification, Replier)>,
     /// Receive publish certificates from the IdP.
-    rx_certificate: Receiver<(SerializedPublishCertificate, PublishCertificate, Replier)>,
+    rx_certificate: Receiver<(
+        SerializedPublishCertificateMessage,
+        PublishCertificate,
+        Replier,
+    )>,
     /// Receive state queries from the IdP.
     rx_state_query: Receiver<Replier>,
     /// Outputs processed (thus verified) publish certificates.
-    tx_processed_certificate: Sender<(SerializedPublishCertificate, SequenceNumber)>,
+    tx_processed_certificate: Sender<(SerializedPublishCertificateMessage, SequenceNumber)>,
     /// The state of the witness.
     state: State,
 }
@@ -41,9 +45,13 @@ impl PublishHandler {
         committee: Committee,
         storage: Storage,
         rx_notification: Receiver<(PublishNotification, Replier)>,
-        rx_certificate: Receiver<(SerializedPublishCertificate, PublishCertificate, Replier)>,
+        rx_certificate: Receiver<(
+            SerializedPublishCertificateMessage,
+            PublishCertificate,
+            Replier,
+        )>,
         rx_state_query: Receiver<Replier>,
-        tx_processed_certificate: Sender<(SerializedPublishCertificate, SequenceNumber)>,
+        tx_processed_certificate: Sender<(SerializedPublishCertificateMessage, SequenceNumber)>,
     ) {
         tokio::spawn(async move {
             // Try to load the state from storage.
@@ -88,10 +96,10 @@ impl PublishHandler {
             Some(vote) => {
                 ensure!(
                     vote.root() == notification.root(),
-                    WitnessError::ConflictingNotification(
-                        vote.root().clone(),
-                        notification.root().clone()
-                    )
+                    WitnessError::ConflictingNotification {
+                        lock: vote.root().clone(),
+                        received: notification.root().clone()
+                    }
                 );
                 Ok(vote.clone())
             }

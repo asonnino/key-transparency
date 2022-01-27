@@ -45,15 +45,15 @@ pub trait PublishMessage {
 #[derive(Serialize, Deserialize)]
 pub struct PublishNotification {
     /// The root committing to the new state.
-    root: Root,
+    pub root: Root,
     /// The state-transition proof ensuring the published state is valid.
-    proof: Proof,
+    pub proof: Proof,
     /// The sequence number unique to this publish notification.
-    sequence_number: SequenceNumber,
+    pub sequence_number: SequenceNumber,
     /// The hash of the previous fields of this publish.
-    id: Digest,
+    pub id: Digest,
     /// A signature from the IdP authenticating the publish.
-    signature: Signature,
+    pub signature: Signature,
 }
 
 impl std::fmt::Debug for PublishNotification {
@@ -119,13 +119,13 @@ impl PublishNotification {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct PublishVote {
     /// The root commitment of the publish notification.
-    root: Root,
+    pub root: Root,
     /// The sequence number of the publish notification.
-    sequence_number: SequenceNumber,
+    pub sequence_number: SequenceNumber,
     /// The witness creating the vote.
     pub author: PublicKey,
     /// A signature authenticating the vote.
-    signature: Signature,
+    pub signature: Signature,
 }
 
 impl std::fmt::Debug for PublishVote {
@@ -191,14 +191,14 @@ impl PublishVote {
 }
 
 /// A certificate over a publish notification.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct PublishCertificate {
     /// The root commitment of the certified notification.
-    root: Root,
+    pub root: Root,
     /// The sequence number of the publish notification.
-    sequence_number: SequenceNumber,
+    pub sequence_number: SequenceNumber,
     /// The quorum of votes making the certificate.
-    votes: Vec<(PublicKey, Signature)>,
+    pub votes: Vec<(PublicKey, Signature)>,
 }
 
 impl std::fmt::Debug for PublishCertificate {

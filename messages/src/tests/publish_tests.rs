@@ -39,5 +39,5 @@ fn verify_notification() {
         /* sequence_number */ SequenceNumber::default(),
         /* keypair */ &identity_provider,
     );
-    assert!(notification.verify(&committee(), Root::default()).is_ok());
+    assert!(notification.verify(&committee(), &Root::default()).is_ok());
 }
