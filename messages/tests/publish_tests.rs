@@ -1,14 +1,20 @@
-use messages::publish::{Proof, PublishNotification, Root, SequenceNumber};
-use test_utils::{committee, keys};
+use messages::publish::Root;
+use test_utils::{certificate, committee, notification, votes};
 
 #[test]
 fn verify_notification() {
-    let (_, identity_provider) = keys().pop().unwrap();
-    let notification = PublishNotification::new(
-        /* root */ Root::default(),
-        /* proof */ Proof::default(),
-        /* sequence_number */ SequenceNumber::default(),
-        /* keypair */ &identity_provider,
-    );
+    let notification = notification();
     assert!(notification.verify(&committee(0), &Root::default()).is_ok());
+}
+
+#[test]
+fn verify_vote() {
+    let vote = votes().pop().unwrap();
+    assert!(vote.verify(&committee(0)).is_ok());
+}
+
+#[test]
+fn verify_certificate() {
+    let certificate = certificate();
+    assert!(certificate.verify(&committee(0)).is_ok());
 }
