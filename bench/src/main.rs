@@ -152,7 +152,7 @@ fn aggregate_certificate() {
         }
     };
 
-    bench("verify certificate", setup, run);
+    bench("aggregate certificate", setup, run);
 }
 
 /// Benchmark the verification of a certificate.
