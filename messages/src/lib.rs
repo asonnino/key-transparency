@@ -12,7 +12,7 @@ pub type SerializedPublishCertificate = Vec<u8>;
 
 /// Messages sent by the IdP to the witnesses.
 #[derive(Serialize, Deserialize, Debug)]
-pub enum IdPtoWitnessMessage {
+pub enum IdPToWitnessMessage {
     PublishNotification(PublishNotification),
     PublishCertificate(PublishCertificate),
     StateQuery,

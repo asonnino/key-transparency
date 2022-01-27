@@ -1,12 +1,11 @@
-use crate::publish::{PublishMessage, PublishVote, SequenceNumber};
-use crypto::Digest;
+use crate::publish::{PublishMessage, PublishVote, Root, SequenceNumber};
 use serde::{Deserialize, Serialize};
 
 /// The safety-critical state of a witness.
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct State {
     /// The latest root commitment.
-    pub root: Digest,
+    pub root: Root,
     /// The current sequence number.
     pub sequence_number: SequenceNumber,
     /// The notification on which this entity is locked.

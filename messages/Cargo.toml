@@ -1,12 +1,24 @@
 [package]
 name = "messages"
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 ed25519-dalek = "1.0.1"
 thiserror = "1.0.30"
 serde = { version = "1.0.133", features = ["derive"] }
+bincode = "1.3.3"
+winter-crypto = "0.2"
+winter-math = "0.2"
 
 crypto = { path = "../crypto" }
 config = { path = "../config" }
+
+[dependencies.akd]
+version = "0.3.8"
+git = "https://github.com/asonnino/akd"
+branch = "main"
+
+[dev-dependencies]
+rand = "0.7.3"
+tokio = { version = "1.15.0", features = ["macros"] }

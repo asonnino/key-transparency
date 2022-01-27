@@ -72,7 +72,7 @@ impl PublishHandler {
     /// Try to vote for a publish notification.
     fn make_vote(&self, notification: &PublishNotification) -> WitnessResult<PublishVote> {
         // Verify the notification.
-        notification.verify(&self.committee)?;
+        notification.verify(&self.committee, &self.state.root)?;
 
         // Check the sequence number.
         ensure!(

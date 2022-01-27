@@ -8,6 +8,13 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::convert::TryInto;
 
+#[cfg(test)]
+#[path = "tests/publish_tests.rs"]
+pub mod publish_tests;
+
+/// Represents a state root.
+pub type Root = Digest;
+
 /// Represents a state proof.
 pub type Proof = u64;
 
@@ -20,7 +27,7 @@ pub type SequenceNumber = u64;
 /// A message that can be hashed.
 pub trait PublishMessage {
     /// Return a reference to the root commitment.
-    fn root(&self) -> &Digest;
+    fn root(&self) -> &Root;
 
     /// Return the sequence number of the message.
     fn sequence_number(&self) -> SequenceNumber;
@@ -38,11 +45,9 @@ pub trait PublishMessage {
 #[derive(Serialize, Deserialize)]
 pub struct PublishNotification {
     /// The root committing to the new state.
-    root: Digest,
-    /// The state-transition proof ensuring the state publish is valid.
+    root: Root,
+    /// The state-transition proof ensuring the published state is valid.
     proof: Proof,
-    /// The item changing the state.
-    items: Vec<Item>,
     /// The sequence number unique to this publish notification.
     sequence_number: SequenceNumber,
     /// The hash of the previous fields of this publish.
@@ -53,23 +58,12 @@ pub struct PublishNotification {
 
 impl std::fmt::Debug for PublishNotification {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(
-            f,
-            "{}: N{}({}, {})",
-            self.id,
-            self.sequence_number,
-            self.root,
-            self.items
-                .iter()
-                .map(|x| format!("{}", x))
-                .collect::<Vec<_>>()
-                .join(",")
-        )
+        write!(f, "{}: N{}({})", self.id, self.sequence_number, self.root)
     }
 }
 
 impl PublishMessage for PublishNotification {
-    fn root(&self) -> &Digest {
+    fn root(&self) -> &Root {
         &self.root
     }
 
@@ -81,16 +75,14 @@ impl PublishMessage for PublishNotification {
 impl PublishNotification {
     /// Create a new PublishNotification signed by the IdP.
     pub fn new(
-        root: Digest,
+        root: Root,
         proof: Proof,
-        items: Vec<Item>,
         sequence_number: SequenceNumber,
         keypair: &KeyPair,
     ) -> Self {
         let notification = Self {
             root,
             proof,
-            items,
             sequence_number,
             id: Digest::default(),
             signature: Signature::default(),
@@ -105,7 +97,7 @@ impl PublishNotification {
     }
 
     /// Verify a publish notification (very CPU-intensive).
-    pub fn verify(&self, committee: &Committee) -> MessageResult<()> {
+    pub fn verify(&self, committee: &Committee, previous_root: &Root) -> MessageResult<()> {
         // Ensure the id is well formed.
         ensure!(
             self.digest() == self.id,
@@ -117,7 +109,9 @@ impl PublishNotification {
             .verify(&self.id, &committee.identity_provider)?;
 
         // Verify the commit proof.
-        unimplemented!();
+        // TODO: Use akd to verify the commit proof using the previous root.
+        let _ = previous_root;
+        Ok(())
     }
 }
 
@@ -125,11 +119,11 @@ impl PublishNotification {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct PublishVote {
     /// The root commitment of the publish notification.
-    root: Digest,
+    root: Root,
     /// The sequence number of the publish notification.
     sequence_number: SequenceNumber,
     /// The witness creating the vote.
-    author: PublicKey,
+    pub author: PublicKey,
     /// A signature authenticating the vote.
     signature: Signature,
 }
@@ -147,8 +141,17 @@ impl std::fmt::Debug for PublishVote {
     }
 }
 
+// Useful for tests.
+impl PartialEq for PublishVote {
+    fn eq(&self, other: &Self) -> bool {
+        self.root == other.root
+            && self.sequence_number == other.sequence_number
+            && self.author == other.author
+    }
+}
+
 impl PublishMessage for PublishVote {
-    fn root(&self) -> &Digest {
+    fn root(&self) -> &Root {
         &self.root
     }
 
@@ -191,7 +194,7 @@ impl PublishVote {
 #[derive(Serialize, Deserialize)]
 pub struct PublishCertificate {
     /// The root commitment of the certified notification.
-    root: Digest,
+    root: Root,
     /// The sequence number of the publish notification.
     sequence_number: SequenceNumber,
     /// The quorum of votes making the certificate.
@@ -211,7 +214,7 @@ impl std::fmt::Debug for PublishCertificate {
 }
 
 impl PublishMessage for PublishCertificate {
-    fn root(&self) -> &Digest {
+    fn root(&self) -> &Root {
         &self.root
     }
 

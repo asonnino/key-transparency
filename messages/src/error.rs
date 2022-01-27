@@ -40,11 +40,20 @@ pub enum MessageError {
 
     #[error("Received certificate without a quorum")]
     CertificateRequiresQuorum,
+
+    #[error("Failed to deserialize message ({0})")]
+    SerializationError(String),
 }
 
 impl From<CryptoError> for MessageError {
     fn from(error: CryptoError) -> Self {
         MessageError::InvalidSignature(error.to_string())
+    }
+}
+
+impl From<Box<bincode::ErrorKind>> for MessageError {
+    fn from(error: Box<bincode::ErrorKind>) -> Self {
+        MessageError::SerializationError(error.to_string())
     }
 }
 

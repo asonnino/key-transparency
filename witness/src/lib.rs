@@ -9,9 +9,10 @@ use config::Committee;
 use crypto::KeyPair;
 use futures::sink::SinkExt;
 use log::info;
+use messages::error::MessageError;
 use messages::publish::{PublishCertificate, PublishNotification};
 use messages::sync::PublishCertificateRequest;
-use messages::{IdPtoWitnessMessage, SerializedPublishCertificate, WitnessToIdPMessage};
+use messages::{IdPToWitnessMessage, SerializedPublishCertificate, WitnessToIdPMessage};
 use network::receiver::{MessageHandler, Receiver as NetworkReceiver, Writer};
 use std::error::Error;
 use storage::Storage;
@@ -91,23 +92,23 @@ impl MessageHandler for WitnessHandler {
         let (sender, receiver) = oneshot::channel();
 
         // Deserialize and parse the message.
-        match bincode::deserialize(&serialized)? {
-            IdPtoWitnessMessage::PublishNotification(notification) => self
+        match bincode::deserialize(&serialized).map_err(MessageError::from)? {
+            IdPToWitnessMessage::PublishNotification(notification) => self
                 .tx_notification
                 .send((notification, sender))
                 .await
                 .expect("Failed to send publish notification to publish handler"),
-            IdPtoWitnessMessage::PublishCertificate(certificate) => self
+            IdPToWitnessMessage::PublishCertificate(certificate) => self
                 .tx_certificate
                 .send((serialized.to_vec(), certificate, sender))
                 .await
                 .expect("Failed to send publish certificate to publish handler"),
-            IdPtoWitnessMessage::StateQuery => self
+            IdPToWitnessMessage::StateQuery => self
                 .tx_state_query
                 .send(sender)
                 .await
                 .expect("Failed to send state query to publish handler"),
-            IdPtoWitnessMessage::PublishCertificateQuery(request) => self
+            IdPToWitnessMessage::PublishCertificateQuery(request) => self
                 .tx_certificate_request
                 .send((request, sender))
                 .await

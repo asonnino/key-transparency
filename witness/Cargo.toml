@@ -17,3 +17,6 @@ config = { path = "../config" }
 storage = { path = "../storage" }
 network = { path = "../network" }
 messages = { path = "../messages" }
+
+[dev-dependencies]
+rand = "0.7.3"
