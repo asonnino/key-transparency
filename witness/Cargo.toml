@@ -19,5 +19,5 @@ network = { path = "../network" }
 messages = { path = "../messages" }
 
 [dev-dependencies]
-rand = "0.7.3"
+test_utils = { path = "../test_utils" }
 function_name = "0.2.0"

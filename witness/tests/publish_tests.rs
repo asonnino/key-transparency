@@ -1,9 +1,3 @@
-mod common;
-
-use common::{
-    broadcast_certificate, broadcast_notification, committee, delete_storage, keys, notification,
-    spawn_witnesses, votes,
-};
 use crypto::Digest;
 use function_name::named;
 use futures::future::try_join_all;
@@ -13,6 +7,10 @@ use messages::publish::{
 };
 use messages::sync::State;
 use messages::WitnessToIdPMessage;
+use test_utils::{
+    broadcast_certificate, broadcast_notification, certificate, committee, delete_storage, keys,
+    notification, spawn_witnesses, votes,
+};
 
 #[tokio::test]
 #[named]
@@ -150,15 +148,7 @@ async fn expected_certificate() {
     tokio::task::yield_now().await;
 
     // Broadcast a certificate.
-    let notification = notification();
-    let certificate = PublishCertificate {
-        root: notification.root.clone(),
-        sequence_number: notification.sequence_number,
-        votes: votes()
-            .into_iter()
-            .map(|x| (x.author, x.signature))
-            .collect(),
-    };
+    let certificate = certificate();
     let handles = broadcast_certificate(certificate, &committee).await;
 
     // Make the expected state.

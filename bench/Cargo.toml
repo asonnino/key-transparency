@@ -1,0 +1,12 @@
+[package]
+name = "bench"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+statistical = "1.0.0"
+
+crypto = { path = "../crypto" }
+config = { path = "../config" }
+messages = { path = "../messages" }
+test_utils = { path = "../test_utils" }

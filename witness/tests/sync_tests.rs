@@ -1,15 +1,13 @@
-pub mod common; // Declare as `pub` to work around Cargo issue: https://github.com/rust-lang/rust/issues/46379
-
 use bytes::Bytes;
-use common::{
-    broadcast_certificate, committee, delete_storage, notification, spawn_witnesses, votes,
-};
 use function_name::named;
 use futures::future::try_join_all;
 use messages::publish::{PublishCertificate, Root, SequenceNumber};
 use messages::sync::{PublishCertificateQuery, State};
 use messages::{IdPToWitnessMessage, WitnessToIdPMessage};
 use network::reliable_sender::ReliableSender;
+use test_utils::{
+    broadcast_certificate, committee, delete_storage, notification, spawn_witnesses, votes,
+};
 
 #[tokio::test]
 #[named]

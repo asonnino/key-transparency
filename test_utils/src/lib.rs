@@ -62,6 +62,19 @@ pub fn votes() -> Vec<PublishVote> {
         .collect()
 }
 
+// A test certificate.
+pub fn certificate() -> PublishCertificate {
+    let notification = notification();
+    PublishCertificate {
+        root: notification.root.clone(),
+        sequence_number: notification.sequence_number,
+        votes: votes()
+            .into_iter()
+            .map(|x| (x.author, x.signature))
+            .collect(),
+    }
+}
+
 // Spawn test witnesses.
 pub fn spawn_witnesses(test_id: &str, committee: &Committee) {
     delete_storage(test_id);
