@@ -1,5 +1,6 @@
-use super::*;
-use config::Witness;
+use config::{Committee, Witness};
+use crypto::{KeyPair, PublicKey};
+use messages::publish::{Proof, PublishNotification, Root, SequenceNumber};
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 

@@ -1,4 +1,4 @@
-mod common;
+pub mod common; // Declare as `pub` to work around Cargo issue: https://github.com/rust-lang/rust/issues/46379
 
 use bytes::Bytes;
 use common::{

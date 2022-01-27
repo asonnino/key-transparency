@@ -8,10 +8,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::convert::TryInto;
 
-#[cfg(test)]
-#[path = "tests/publish_tests.rs"]
-pub mod publish_tests;
-
 /// Represents a state root.
 pub type Root = Digest;
 
