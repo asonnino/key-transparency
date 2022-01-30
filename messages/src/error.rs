@@ -1,4 +1,5 @@
-use crate::publish::{Root, SequenceNumber};
+use crate::{deserialize_root, serialize_root, Root, SequenceNumber};
+use akd::errors::AkdError;
 use crypto::{CryptoError, Digest, PublicKey};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -43,6 +44,9 @@ pub enum MessageError {
 
     #[error("Failed to deserialize message ({0})")]
     SerializationError(String),
+
+    #[error("State proof verification failed: {0}")]
+    PoofVerificationFailed(String),
 }
 
 impl From<CryptoError> for MessageError {
@@ -54,6 +58,12 @@ impl From<CryptoError> for MessageError {
 impl From<Box<bincode::ErrorKind>> for MessageError {
     fn from(error: Box<bincode::ErrorKind>) -> Self {
         MessageError::SerializationError(error.to_string())
+    }
+}
+
+impl From<AkdError> for MessageError {
+    fn from(error: AkdError) -> Self {
+        MessageError::PoofVerificationFailed(error.to_string())
     }
 }
 
@@ -69,8 +79,15 @@ pub enum WitnessError {
         got: SequenceNumber,
     },
 
-    #[error("Received conflicting notifications: {lock} != {received}")]
-    ConflictingNotification { lock: Root, received: Root },
+    #[error("Received conflicting notifications: {lock:?} != {received:?}")]
+    ConflictingNotification {
+        #[serde(serialize_with = "serialize_root")]
+        #[serde(deserialize_with = "deserialize_root")]
+        lock: Root,
+        #[serde(serialize_with = "serialize_root")]
+        #[serde(deserialize_with = "deserialize_root")]
+        received: Root,
+    },
 
     #[error("Missing earlier certificates, current sequence number at {0}")]
     MissingEarlierCertificates(SequenceNumber),

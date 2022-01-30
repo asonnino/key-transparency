@@ -1,11 +1,11 @@
 use config::Committee;
 use crypto::KeyPair;
-use messages::publish::{
-    Proof, PublishCertificate, PublishNotification, PublishVote, Root, SequenceNumber,
-};
+use futures::executor::block_on;
+use messages::publish::{Proof, PublishCertificate, PublishNotification, PublishVote};
+use messages::{Root, SequenceNumber};
 use statistical::{mean, standard_deviation};
 use std::time::Instant;
-use test_utils::{certificate, committee, keys, notification, votes};
+use test_utils::{certificate, committee, keys, notification, proof, votes};
 
 /// The number of runs used to compute statistics.
 const RUNS: usize = 100;
@@ -59,16 +59,20 @@ where
 
 /// Benchmark the creation of a publish notification.
 fn create_notification() {
+    struct Data(Root, Proof, KeyPair);
+
     let setup = || {
         let (_, identity_provider) = keys().pop().unwrap();
-        identity_provider
+        let (root, _, proof) = block_on(proof());
+        Data(root, proof, identity_provider)
     };
 
-    let run = |identity_provider: &KeyPair| {
+    let run = |data: &Data| {
+        let Data(root, proof, identity_provider) = data;
         PublishNotification::new(
-            /* root */ Root::default(),
-            /* proof */ Proof::default(),
-            /* sequence_number */ SequenceNumber::default(),
+            *root,
+            proof.clone(),
+            SequenceNumber::default(),
             /* keypair */ identity_provider,
         )
     };
@@ -80,13 +84,11 @@ fn create_notification() {
 fn verify_notification() {
     struct Data(PublishNotification, Committee, Root);
 
-    let setup = || Data(notification(), committee(0), Root::default());
+    let setup = || Data(block_on(notification()), committee(0), Root::default());
 
     let run = |data: &Data| {
-        let notification = &data.0;
-        let committee = &data.1;
-        let previous_root = &data.2;
-        notification.verify(committee, previous_root)
+        let Data(notification, committee, previous_root) = data;
+        block_on(notification.verify(committee, previous_root))
     };
 
     bench("verify notification", setup, run);
@@ -98,12 +100,11 @@ fn create_vote() {
 
     let setup = || {
         let (_, keypair) = keys().pop().unwrap();
-        Data(notification(), keypair)
+        Data(block_on(notification()), keypair)
     };
 
     let run = |data: &Data| {
-        let notification = &data.0;
-        let keypair = &data.1;
+        let Data(notification, keypair) = data;
         PublishVote::new(notification, keypair)
     };
 
@@ -115,13 +116,12 @@ fn verify_vote() {
     struct Data(PublishVote, Committee);
 
     let setup = || {
-        let vote = votes().pop().unwrap();
+        let vote = block_on(votes()).pop().unwrap();
         Data(vote, committee(0))
     };
 
     let run = |data: &Data| {
-        let vote = &data.0;
-        let committee = &data.1;
+        let Data(vote, committee) = data;
         vote.verify(committee)
     };
 
@@ -134,14 +134,13 @@ fn aggregate_certificate() {
 
     let setup = || {
         let threshold = committee(0).quorum_threshold() as usize;
-        let mut votes = votes();
+        let mut votes = block_on(votes());
         votes.truncate(threshold);
-        Data(notification(), votes)
+        Data(block_on(notification()), votes)
     };
 
     let run = |data: &Data| {
-        let notification = &data.0;
-        let votes = &data.1;
+        let Data(notification, votes) = data;
         PublishCertificate {
             root: notification.root.clone(),
             sequence_number: notification.sequence_number,
@@ -161,14 +160,13 @@ fn verify_certificate() {
 
     let setup = || {
         let threshold = committee(0).quorum_threshold() as usize;
-        let mut certificate = certificate();
+        let mut certificate = block_on(certificate());
         certificate.votes.truncate(threshold);
         Data(certificate, committee(0))
     };
 
     let run = |data: &Data| {
-        let certificate = &data.0;
-        let committee = &data.1;
+        let Data(certificate, committee) = data;
         certificate.verify(committee)
     };
 

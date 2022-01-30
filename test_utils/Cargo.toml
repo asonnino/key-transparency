@@ -14,3 +14,8 @@ storage = { path = "../storage" }
 network = { path = "../network" }
 messages = { path = "../messages" }
 witness = { path = "../witness" }
+
+[dependencies.akd]
+version = "0.3.8"
+git = "https://github.com/asonnino/akd"
+branch = "main"

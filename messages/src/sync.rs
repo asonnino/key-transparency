@@ -1,10 +1,13 @@
-use crate::publish::{PublishMessage, PublishVote, Root, SequenceNumber};
+use crate::publish::{PublishMessage, PublishVote};
+use crate::{deserialize_root, serialize_root, Root, SequenceNumber};
 use serde::{Deserialize, Serialize};
 
 /// The safety-critical state of a witness.
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct State {
     /// The latest root commitment.
+    #[serde(serialize_with = "serialize_root")]
+    #[serde(deserialize_with = "deserialize_root")]
     pub root: Root,
     /// The current sequence number.
     pub sequence_number: SequenceNumber,
@@ -16,7 +19,7 @@ impl std::fmt::Debug for State {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         write!(
             f,
-            "State{}({}, {:?})",
+            "State{}({:?}, {:?})",
             self.sequence_number,
             self.root,
             self.lock.as_ref().map(|vote| vote.digest())
