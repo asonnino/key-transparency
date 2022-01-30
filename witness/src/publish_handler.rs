@@ -3,11 +3,9 @@ use config::Committee;
 use crypto::KeyPair;
 use log::{debug, warn};
 use messages::error::{WitnessError, WitnessResult};
-use messages::publish::{
-    PublishCertificate, PublishMessage, PublishNotification, PublishVote, SequenceNumber,
-};
+use messages::publish::{PublishCertificate, PublishMessage, PublishNotification, PublishVote};
 use messages::sync::State;
-use messages::{ensure, SerializedPublishCertificateMessage, WitnessToIdPMessage};
+use messages::{ensure, SequenceNumber, SerializedPublishCertificateMessage, WitnessToIdPMessage};
 use storage::Storage;
 use tokio::sync::mpsc::{Receiver, Sender};
 
@@ -78,9 +76,11 @@ impl PublishHandler {
     }
 
     /// Try to vote for a publish notification.
-    fn make_vote(&self, notification: &PublishNotification) -> WitnessResult<PublishVote> {
+    async fn make_vote(&self, notification: &PublishNotification) -> WitnessResult<PublishVote> {
         // Verify the notification.
-        notification.verify(&self.committee, &self.state.root)?;
+        notification
+            .verify(&self.committee, &self.state.root)
+            .await?;
 
         // Check the sequence number.
         ensure!(
@@ -127,7 +127,7 @@ impl PublishHandler {
                 // Receive publish notifications.
                 Some((notification, replier)) = self.rx_notification.recv() => {
                     debug!("Received {:?}", notification);
-                    let reply = match self.make_vote(&notification) {
+                    let reply = match self.make_vote(&notification).await {
                         Err(e) => {
                             warn!("{}", e);
 

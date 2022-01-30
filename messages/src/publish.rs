@@ -1,5 +1,6 @@
-use crate::ensure;
 use crate::error::{MessageError, MessageResult};
+use crate::{deserialize_root, ensure, serialize_root, Blake3, Root, SequenceNumber};
+use akd::proof_structs::AppendOnlyProof;
 use config::Committee;
 use crypto::{Digest, KeyPair, PublicKey, Signature};
 use ed25519_dalek::Digest as _;
@@ -7,18 +8,10 @@ use ed25519_dalek::Sha512;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::convert::TryInto;
-
-/// Represents a state root.
-pub type Root = Digest;
+use winter_crypto::Digest as _;
 
 /// Represents a state proof.
-pub type Proof = u64;
-
-/// An item committed to the state.
-pub type Item = u64;
-
-/// The sequence number of consistent (or reliable) broadcast.
-pub type SequenceNumber = u64;
+pub type Proof = AppendOnlyProof<Blake3>;
 
 /// A message that can be hashed.
 pub trait PublishMessage {
@@ -31,7 +24,7 @@ pub trait PublishMessage {
     /// Compute the hash of the message.
     fn digest(&self) -> Digest {
         let mut hasher = Sha512::new();
-        hasher.update(self.root());
+        hasher.update(&self.root().as_bytes());
         hasher.update(self.sequence_number().to_le_bytes());
         Digest(hasher.finalize().as_slice()[..32].try_into().unwrap())
     }
@@ -41,6 +34,8 @@ pub trait PublishMessage {
 #[derive(Serialize, Deserialize)]
 pub struct PublishNotification {
     /// The root committing to the new state.
+    #[serde(serialize_with = "serialize_root")]
+    #[serde(deserialize_with = "deserialize_root")]
     pub root: Root,
     /// The state-transition proof ensuring the published state is valid.
     pub proof: Proof,
@@ -54,7 +49,7 @@ pub struct PublishNotification {
 
 impl std::fmt::Debug for PublishNotification {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(f, "{}: N{}({})", self.id, self.sequence_number, self.root)
+        write!(f, "{}: N{}({:?})", self.id, self.sequence_number, self.root)
     }
 }
 
@@ -93,7 +88,7 @@ impl PublishNotification {
     }
 
     /// Verify a publish notification (very CPU-intensive).
-    pub fn verify(&self, committee: &Committee, previous_root: &Root) -> MessageResult<()> {
+    pub async fn verify(&self, committee: &Committee, previous_root: &Root) -> MessageResult<()> {
         // Ensure the id is well formed.
         ensure!(
             self.digest() == self.id,
@@ -107,6 +102,11 @@ impl PublishNotification {
         // Verify the commit proof.
         // TODO: Use akd to verify the commit proof using the previous root.
         let _ = previous_root;
+        let a = self.proof.clone();
+        akd::auditor::audit_verify::<Blake3>(*previous_root, self.root.clone(), self.proof.clone())
+            .await
+            .unwrap();
+
         Ok(())
     }
 }
@@ -115,6 +115,8 @@ impl PublishNotification {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct PublishVote {
     /// The root commitment of the publish notification.
+    #[serde(serialize_with = "serialize_root")]
+    #[serde(deserialize_with = "deserialize_root")]
     pub root: Root,
     /// The sequence number of the publish notification.
     pub sequence_number: SequenceNumber,
@@ -128,7 +130,7 @@ impl std::fmt::Debug for PublishVote {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
         write!(
             f,
-            "{}: V{}({}, {})",
+            "{}: V{}({}, {:?})",
             self.digest(),
             self.sequence_number,
             self.author,
@@ -190,6 +192,8 @@ impl PublishVote {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct PublishCertificate {
     /// The root commitment of the certified notification.
+    #[serde(serialize_with = "serialize_root")]
+    #[serde(deserialize_with = "deserialize_root")]
     pub root: Root,
     /// The sequence number of the publish notification.
     pub sequence_number: SequenceNumber,
@@ -201,7 +205,7 @@ impl std::fmt::Debug for PublishCertificate {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
         write!(
             f,
-            "{}: C{}({})",
+            "{}: C{}({:?})",
             self.digest(),
             self.sequence_number,
             self.root

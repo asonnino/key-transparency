@@ -1,0 +1,14 @@
+[package]
+name = "idp"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bincode = "1.3.3"
+bytes = "1.1.0"
+futures = "0.3.19"
+
+crypto = { path = "../crypto" }
+config = { path = "../config" }
+messages = { path = "../messages" }
+network = { path = "../network" }

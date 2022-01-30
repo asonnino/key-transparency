@@ -1,7 +1,6 @@
 use crate::Replier;
-use messages::publish::SequenceNumber;
 use messages::sync::PublishCertificateQuery;
-use messages::{SerializedPublishCertificateMessage, WitnessToIdPMessage};
+use messages::{SequenceNumber, SerializedPublishCertificateMessage, WitnessToIdPMessage};
 use storage::Storage;
 use tokio::sync::mpsc::Receiver;
 

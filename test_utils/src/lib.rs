@@ -1,10 +1,12 @@
+use akd::directory::Directory;
+use akd::storage::memory::AsyncInMemoryDatabase;
+use akd::storage::types::{AkdLabel, AkdValue};
 use bytes::Bytes;
 use config::{Committee, Witness};
 use crypto::{KeyPair, PublicKey};
-use messages::publish::{
-    Proof, PublishCertificate, PublishNotification, PublishVote, Root, SequenceNumber,
-};
+use messages::publish::{Proof, PublishCertificate, PublishNotification, PublishVote};
 use messages::IdPToWitnessMessage;
+use messages::{Blake3, Root, SequenceNumber};
 use network::reliable_sender::{CancelHandler, ReliableSender};
 use rand::rngs::StdRng;
 use rand::SeedableRng;
@@ -42,20 +44,49 @@ pub fn committee(base_port: u16) -> Committee {
     }
 }
 
+// Test proof and root hashes.
+pub async fn proof() -> (Root, Root, Proof) {
+    let db = AsyncInMemoryDatabase::new();
+    let mut akd = Directory::<_>::new::<Blake3>(&db).await.unwrap();
+    akd.publish::<Blake3>(
+        vec![
+            (AkdLabel("A".to_string()), AkdValue("B".to_string())),
+            (AkdLabel("C".to_string()), AkdValue("D".to_string())),
+        ],
+        false,
+    )
+    .await
+    .unwrap();
+
+    let current_azks = akd.retrieve_current_azks().await.unwrap();
+    let start_root = akd
+        .get_root_hash_at_epoch::<Blake3>(&current_azks, /* sequence number */ 0)
+        .await
+        .unwrap();
+    let end_root = akd
+        .get_root_hash_at_epoch::<Blake3>(&current_azks, /* sequence number */ 1)
+        .await
+        .unwrap();
+
+    let proof = akd.audit::<Blake3>(0, 1).await.unwrap();
+    (start_root, end_root, proof)
+}
+
 // Test publish notification.
-pub fn notification() -> PublishNotification {
+pub async fn notification() -> PublishNotification {
     let (_, identity_provider) = keys().pop().unwrap();
+    let (_, root, proof) = proof().await;
     PublishNotification::new(
-        /* root */ Root::default(),
-        /* proof */ Proof::default(),
-        /* sequence_number */ SequenceNumber::default(),
+        root,
+        proof,
+        SequenceNumber::default(),
         /* keypair */ &identity_provider,
     )
 }
 
 // The witnesses' votes over a test notification.
-pub fn votes() -> Vec<PublishVote> {
-    let notification = notification();
+pub async fn votes() -> Vec<PublishVote> {
+    let notification = notification().await;
     keys()
         .iter()
         .map(|(_, keypair)| PublishVote::new(&notification, keypair))
@@ -63,12 +94,13 @@ pub fn votes() -> Vec<PublishVote> {
 }
 
 // A test certificate.
-pub fn certificate() -> PublishCertificate {
-    let notification = notification();
+pub async fn certificate() -> PublishCertificate {
+    let notification = notification().await;
     PublishCertificate {
         root: notification.root.clone(),
         sequence_number: notification.sequence_number,
         votes: votes()
+            .await
             .into_iter()
             .map(|x| (x.author, x.signature))
             .collect(),

@@ -1,4 +1,4 @@
-use crate::publish::{Root, SequenceNumber};
+use crate::{deserialize_root, serialize_root, Root, SequenceNumber};
 use crypto::{CryptoError, Digest, PublicKey};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -69,8 +69,15 @@ pub enum WitnessError {
         got: SequenceNumber,
     },
 
-    #[error("Received conflicting notifications: {lock} != {received}")]
-    ConflictingNotification { lock: Root, received: Root },
+    #[error("Received conflicting notifications: {lock:?} != {received:?}")]
+    ConflictingNotification {
+        #[serde(serialize_with = "serialize_root")]
+        #[serde(deserialize_with = "deserialize_root")]
+        lock: Root,
+        #[serde(serialize_with = "serialize_root")]
+        #[serde(deserialize_with = "deserialize_root")]
+        received: Root,
+    },
 
     #[error("Missing earlier certificates, current sequence number at {0}")]
     MissingEarlierCertificates(SequenceNumber),
