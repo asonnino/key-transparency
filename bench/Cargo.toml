@@ -11,3 +11,8 @@ crypto = { path = "../crypto" }
 config = { path = "../config" }
 messages = { path = "../messages" }
 test_utils = { path = "../test_utils" }
+
+[dependencies.akd]
+version = "0.3.8"
+git = "https://github.com/asonnino/akd"
+branch = "main"

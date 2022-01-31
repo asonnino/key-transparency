@@ -1,17 +1,23 @@
+use akd::directory::Directory;
+use akd::storage::memory::AsyncInMemoryDatabase;
+use akd::storage::types::{AkdLabel, AkdValue};
 use config::Committee;
 use crypto::KeyPair;
 use futures::executor::block_on;
 use messages::publish::{Proof, PublishCertificate, PublishNotification, PublishVote};
-use messages::{Root, SequenceNumber};
+use messages::{Blake3, Root};
 use statistical::{mean, standard_deviation};
 use std::time::Instant;
-use test_utils::{certificate, committee, keys, notification, proof, votes};
+use test_utils::{certificate, committee, keys, notification, votes};
 
 /// The number of runs used to compute statistics.
-const RUNS: usize = 100;
+const RUNS: usize = 10;
 
 /// The number measures to constitute a run (to smooth bootstrapping).
 const PRECISION: usize = 100;
+
+/// The number of key-values pair in the state tree.
+const TREE_ENTRIES: usize = 10_000;
 
 /// Run micro-benchmarks for every CPU-intensive operation.
 fn main() {
@@ -50,31 +56,52 @@ where
 
     // Display the results to stdout.
     println!(
-        "  {:.2} +/- {:.2} ms .......... {}",
+        "  {:>7.2} +/- {:>5.2} ms .......... {}",
         mean(&data),
         standard_deviation(&data, None),
         id
     );
 }
 
+/// Create a publish proof from a tree with the specified number of key-value pairs.
+fn proof(entries: usize) -> (Root, Root, Proof) {
+    // Create the list of 64-bytes key-value pairs (in memory).
+    let items: Vec<_> = (0..entries)
+        .map(|i| {
+            let key = format!("key-{:>27}", i);
+            let value = format!("value-{:>25}", i);
+            (AkdLabel(key), AkdValue(value))
+        })
+        .collect();
+
+    // Create a test tree with the specified number of key-values.
+    let db = AsyncInMemoryDatabase::new();
+    let mut akd = block_on(Directory::<_>::new::<Blake3>(&db)).unwrap();
+    block_on(akd.publish::<Blake3>(items, false)).unwrap();
+
+    // Compute the start root (at sequence 0) and end root (at sequence 1).
+    let current_azks = block_on(akd.retrieve_current_azks()).unwrap();
+    let start = block_on(akd.get_root_hash_at_epoch::<Blake3>(&current_azks, 0)).unwrap();
+    let end = block_on(akd.get_root_hash_at_epoch::<Blake3>(&current_azks, 1)).unwrap();
+
+    // Generate the audit proof.
+    let proof = block_on(akd.audit::<Blake3>(0, 1)).unwrap();
+    (start, end, proof)
+}
+
 /// Benchmark the creation of a publish notification.
 fn create_notification() {
-    struct Data(Root, Proof, KeyPair);
+    struct Data(KeyPair);
 
     let setup = || {
-        let (_, identity_provider) = keys().pop().unwrap();
-        let (root, _, proof) = block_on(proof());
-        Data(root, proof, identity_provider)
+        let (_, keypair) = keys().pop().unwrap();
+        Data(keypair)
     };
 
     let run = |data: &Data| {
-        let Data(root, proof, identity_provider) = data;
-        PublishNotification::new(
-            *root,
-            proof.clone(),
-            SequenceNumber::default(),
-            /* keypair */ identity_provider,
-        )
+        let Data(keypair) = data;
+        let (_, root, proof) = proof(TREE_ENTRIES);
+        PublishNotification::new(root, proof, 1, keypair)
     };
 
     bench("create notification", setup, run);
@@ -84,7 +111,12 @@ fn create_notification() {
 fn verify_notification() {
     struct Data(PublishNotification, Committee, Root);
 
-    let setup = || Data(block_on(notification()), committee(0), Root::default());
+    let setup = || {
+        let (_, keypair) = keys().pop().unwrap();
+        let (_, root, proof) = proof(TREE_ENTRIES);
+        let notification = PublishNotification::new(root, proof, 1, &keypair);
+        Data(notification, committee(0), Root::default())
+    };
 
     let run = |data: &Data| {
         let Data(notification, committee, previous_root) = data;

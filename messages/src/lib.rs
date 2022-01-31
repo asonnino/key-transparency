@@ -11,9 +11,6 @@ use winter_crypto::{Digest as _, Hasher};
 use winter_math::fields::f128::BaseElement;
 use winter_utils::{Deserializable, SliceReader};
 
-/// The sequence number of consistent (or reliable) broadcast.
-pub type SequenceNumber = u64;
-
 /// Alias for serialized publish certificates.
 pub type SerializedPublishCertificateMessage = Vec<u8>;
 
@@ -33,6 +30,9 @@ pub enum WitnessToIdPMessage {
     State(WitnessResult<State>),
     PublishCertificateResponse(SerializedPublishCertificateMessage),
 }
+
+/// The sequence number of consistent (or reliable) broadcast.
+pub type SequenceNumber = u64;
 
 // The hasher for the state tree.
 pub type Blake3 = Blake3_256<BaseElement>;
