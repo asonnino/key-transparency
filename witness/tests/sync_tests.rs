@@ -1,7 +1,7 @@
 use bytes::Bytes;
 use function_name::named;
 use futures::future::try_join_all;
-use messages::publish::{PublishCertificate, Root, SequenceNumber};
+use messages::publish::PublishCertificate;
 use messages::sync::{PublishCertificateQuery, State};
 use messages::{IdPToWitnessMessage, WitnessToIdPMessage};
 use network::reliable_sender::ReliableSender;
@@ -33,11 +33,7 @@ async fn state_query() {
     let handles = sender.broadcast(addresses, bytes).await;
 
     // Make the expected state.
-    let expected = State {
-        root: Root::default(),
-        sequence_number: SequenceNumber::default(),
-        lock: None,
-    };
+    let expected = State::default();
 
     // Ensure the witnesses' replies are as expected.
     for reply in try_join_all(handles).await.unwrap() {
@@ -63,11 +59,12 @@ async fn sync_request() {
     tokio::task::yield_now().await;
 
     // Broadcast a certificate.
-    let notification = notification();
+    let notification = notification().await;
     let certificate = PublishCertificate {
-        root: notification.root.clone(),
+        root: notification.root,
         sequence_number: notification.sequence_number,
         votes: votes()
+            .await
             .into_iter()
             .map(|x| (x.author, x.signature))
             .collect(),

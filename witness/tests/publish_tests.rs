@@ -1,15 +1,15 @@
-use crypto::Digest;
+use akd::directory::Directory;
+use akd::storage::memory::AsyncInMemoryDatabase;
+use akd::storage::types::{AkdLabel, AkdValue};
 use function_name::named;
 use futures::future::try_join_all;
 use messages::error::WitnessError;
-use messages::publish::{
-    Proof, PublishCertificate, PublishNotification, PublishVote, Root, SequenceNumber,
-};
+use messages::publish::{PublishCertificate, PublishNotification, PublishVote};
 use messages::sync::State;
-use messages::WitnessToIdPMessage;
+use messages::{Blake3, WitnessToIdPMessage};
 use test_utils::{
     broadcast_certificate, broadcast_notification, certificate, committee, delete_storage, keys,
-    notification, spawn_witnesses, votes,
+    notification, proof, spawn_witnesses, votes,
 };
 
 #[tokio::test]
@@ -24,7 +24,7 @@ async fn correct_notification() {
     tokio::task::yield_now().await;
 
     // Broadcast a publish notification.
-    let notification = notification();
+    let notification = notification().await;
     let handles = broadcast_notification(notification, &committee).await;
 
     // Wait for the witnesses' replies.
@@ -40,7 +40,7 @@ async fn correct_notification() {
     replies.sort_by_key(|x| x.author);
 
     // Ensure the received votes are as expected.
-    let mut expected_votes = votes();
+    let mut expected_votes = votes().await;
     expected_votes.sort_by_key(|x| x.author);
     assert_eq!(replies, expected_votes);
 
@@ -60,11 +60,12 @@ async fn unexpected_sequence_number() {
     tokio::task::yield_now().await;
 
     // Make a publish notification with a bad sequence number.
-    let bad_sequence_number = SequenceNumber::default() + 1;
+    let bad_sequence_number = 2;
     let (_, identity_provider) = keys().pop().unwrap();
+    let (_, root, proof) = proof().await;
     let notification = PublishNotification::new(
-        /* root */ Root::default(),
-        /* proof */ Proof::default(),
+        root,
+        proof,
         /* sequence_number */ bad_sequence_number,
         /* keypair */ &identity_provider,
     );
@@ -79,7 +80,7 @@ async fn unexpected_sequence_number() {
                 expected,
                 got,
             })) => {
-                assert_eq!(expected, SequenceNumber::default());
+                assert_eq!(expected, 1);
                 assert_eq!(got, bad_sequence_number);
             }
             _ => panic!("Unexpected protocol message"),
@@ -102,17 +103,35 @@ async fn conflicting_notification() {
     tokio::task::yield_now().await;
 
     // Broadcast a first notification.
-    let notification = notification();
+    let notification = notification().await;
     let notification_root = notification.root.clone();
     let handles = broadcast_notification(notification, &committee).await;
     let _ = try_join_all(handles).await.unwrap();
 
+    // Make a conflicting proof of update.
+    let db = AsyncInMemoryDatabase::new();
+    let mut akd = Directory::<_>::new::<Blake3>(&db).await.unwrap();
+    akd.publish::<Blake3>(
+        vec![(AkdLabel("X".to_string()), AkdValue("Y".to_string()))],
+        false,
+    )
+    .await
+    .unwrap();
+    let current_azks = akd.retrieve_current_azks().await.unwrap();
+    let root = akd
+        .get_root_hash_at_epoch::<Blake3>(&current_azks, /* sequence number */ 1)
+        .await
+        .unwrap();
+
+    // Generate the audit proof.
+    let proof = akd.audit::<Blake3>(0, 1).await.unwrap();
+
     // Broadcast a conflicting notification.
     let (_, identity_provider) = keys().pop().unwrap();
     let conflict = PublishNotification::new(
-        /* root */ Digest([1; 32]),
-        /* proof */ Proof::default(),
-        /* sequence_number */ SequenceNumber::default(),
+        root,
+        proof,
+        /* sequence number */ 1,
         /* keypair */ &identity_provider,
     );
     let conflict_root = conflict.root.clone();
@@ -148,13 +167,14 @@ async fn expected_certificate() {
     tokio::task::yield_now().await;
 
     // Broadcast a certificate.
-    let certificate = certificate();
+    let certificate = certificate().await;
     let handles = broadcast_certificate(certificate, &committee).await;
 
     // Make the expected state.
+    let (_, root, _) = proof().await;
     let expected = State {
-        root: Root::default(),
-        sequence_number: SequenceNumber::default() + 1,
+        root,
+        sequence_number: 2,
         lock: None,
     };
 
@@ -182,12 +202,12 @@ async fn unexpected_certificate() {
     tokio::task::yield_now().await;
 
     // Make a publish certificate for a future sequence number.
-    let future_sequence_number = SequenceNumber::default() + 1;
+    let future_sequence_number = 2;
     let (_, identity_provider) = keys().pop().unwrap();
-
+    let (_, root, proof) = proof().await;
     let notification = PublishNotification::new(
-        /* root */ Root::default(),
-        /* proof */ Proof::default(),
+        root,
+        proof,
         /* sequence_number */ future_sequence_number,
         /* keypair */ &identity_provider,
     );
@@ -210,7 +230,7 @@ async fn unexpected_certificate() {
     for reply in try_join_all(handles).await.unwrap() {
         match bincode::deserialize(&reply).unwrap() {
             WitnessToIdPMessage::State(Err(WitnessError::MissingEarlierCertificates(seq))) => {
-                assert_eq!(seq, SequenceNumber::default());
+                assert_eq!(seq, 1);
             }
             _ => panic!("Unexpected protocol message"),
         }

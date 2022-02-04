@@ -1,9 +1,12 @@
 use crate::publish::{PublishMessage, PublishVote};
-use crate::{deserialize_root, serialize_root, Root, SequenceNumber};
+use crate::{deserialize_root, serialize_root, Blake3, Root, SequenceNumber};
+use akd::directory::Directory;
+use akd::storage::memory::AsyncInMemoryDatabase;
+use futures::executor::block_on;
 use serde::{Deserialize, Serialize};
 
 /// The safety-critical state of a witness.
-#[derive(Serialize, Deserialize, Default, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct State {
     /// The latest root commitment.
     #[serde(serialize_with = "serialize_root")]
@@ -13,6 +16,23 @@ pub struct State {
     pub sequence_number: SequenceNumber,
     /// The notification on which this entity is locked.
     pub lock: Option<PublishVote>,
+}
+
+impl Default for State {
+    fn default() -> Self {
+        let db = AsyncInMemoryDatabase::new();
+        let akd = block_on(Directory::<_>::new::<Blake3>(&db))
+            .expect("Failed to create empty tree directory");
+        let current_azks = block_on(akd.retrieve_current_azks()).expect("Failed to compute azks");
+        let root = block_on(akd.get_root_hash_at_epoch::<Blake3>(&current_azks, 0))
+            .expect("Failed to compute initial root hash");
+
+        Self {
+            root,
+            sequence_number: 1,
+            lock: None,
+        }
+    }
 }
 
 impl std::fmt::Debug for State {

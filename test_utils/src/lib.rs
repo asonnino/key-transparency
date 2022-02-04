@@ -6,7 +6,7 @@ use config::{Committee, Witness};
 use crypto::{KeyPair, PublicKey};
 use messages::publish::{Proof, PublishCertificate, PublishNotification, PublishVote};
 use messages::IdPToWitnessMessage;
-use messages::{Blake3, Root, SequenceNumber};
+use messages::{Blake3, Root};
 use network::reliable_sender::{CancelHandler, ReliableSender};
 use rand::rngs::StdRng;
 use rand::SeedableRng;
@@ -84,7 +84,7 @@ pub async fn notification() -> PublishNotification {
     PublishNotification::new(
         root,
         proof,
-        SequenceNumber::default(),
+        /* sequence_number */ 1,
         /* keypair */ &identity_provider,
     )
 }
@@ -102,7 +102,7 @@ pub async fn votes() -> Vec<PublishVote> {
 pub async fn certificate() -> PublishCertificate {
     let notification = notification().await;
     PublishCertificate {
-        root: notification.root.clone(),
+        root: notification.root,
         sequence_number: notification.sequence_number,
         votes: votes()
             .await

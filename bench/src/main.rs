@@ -174,7 +174,7 @@ fn aggregate_certificate() {
     let run = |data: &Data| {
         let Data(notification, votes) = data;
         PublishCertificate {
-            root: notification.root.clone(),
+            root: notification.root,
             sequence_number: notification.sequence_number,
             votes: votes
                 .iter()

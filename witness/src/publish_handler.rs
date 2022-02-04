@@ -97,8 +97,8 @@ impl PublishHandler {
                 ensure!(
                     vote.root() == notification.root(),
                     WitnessError::ConflictingNotification {
-                        lock: vote.root().clone(),
-                        received: notification.root().clone()
+                        lock: *vote.root(),
+                        received: *notification.root()
                     }
                 );
                 Ok(vote.clone())
@@ -166,7 +166,7 @@ impl PublishHandler {
                                 debug!("Processing {:?}", certificate);
 
                                 // Update the witness state.
-                                self.state.root = certificate.root().clone();
+                                self.state.root = *certificate.root();
                                 self.state.sequence_number += 1;
                                 self.state.lock = None;
 

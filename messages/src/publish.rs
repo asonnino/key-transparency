@@ -100,8 +100,7 @@ impl PublishNotification {
             .verify(&self.id, &committee.identity_provider)?;
 
         // Verify the commit proof.
-        akd::auditor::audit_verify::<Blake3>(*previous_root, self.root.clone(), self.proof.clone())
-            .await?;
+        akd::auditor::audit_verify::<Blake3>(*previous_root, self.root, self.proof.clone()).await?;
 
         Ok(())
     }
@@ -158,7 +157,7 @@ impl PublishVote {
     /// Create a new vote for a publish notification (signed by a witness).
     pub fn new(notification: &PublishNotification, keypair: &KeyPair) -> Self {
         let vote = Self {
-            root: notification.root.clone(),
+            root: notification.root,
             sequence_number: notification.sequence_number,
             author: keypair.public(),
             signature: Signature::default(),

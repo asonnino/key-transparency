@@ -21,3 +21,8 @@ messages = { path = "../messages" }
 [dev-dependencies]
 test_utils = { path = "../test_utils" }
 function_name = "0.2.0"
+
+[dev-dependencies.akd]
+version = "0.3.8"
+git = "https://github.com/asonnino/akd"
+branch = "main"
