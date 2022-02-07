@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use akd::directory::Directory;
 use akd::storage::memory::AsyncInMemoryDatabase;
 use akd::storage::types::{AkdLabel, AkdValue};
@@ -82,6 +84,13 @@ pub struct CertificateGenerator {
 }
 
 impl CertificateGenerator {
+    pub fn new(committee: Committee) -> Self {
+        Self {
+            committee,
+            votes: Vec::new(),
+        }
+    }
+
     /// Reset the certificate generator.
     pub fn clear(&mut self) {
         self.votes.clear();

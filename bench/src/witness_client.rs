@@ -1,47 +1,100 @@
 mod payload_generator;
 
-use bytes::Bytes;
-use config::Committee;
-use futures::future::{join_all, try_join};
+use anyhow::{Context, Result};
+use clap::{arg, crate_name, crate_version, App, AppSettings};
+use config::{Committee, Import};
+use env_logger::Env;
+use futures::future::join_all;
+use futures::stream::futures_unordered::FuturesUnordered;
+use futures::stream::StreamExt;
 use log::{debug, info, warn};
-use network::simple_sender::SimpleSender;
-use payload_generator::NotificationGenerator;
-use std::collections::HashMap;
+use network::reliable_sender::ReliableSender;
+use payload_generator::{CertificateGenerator, NotificationGenerator};
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
-use tokio::sync::mpsc::{channel, Receiver, Sender};
-use tokio::task::JoinHandle;
 use tokio::time::{interval, sleep, Duration, Instant};
 
-fn main() {}
+#[tokio::main]
+async fn main() -> Result<()> {
+    // Read the cli parameters.
+    let matches = App::new(crate_name!())
+        .version(crate_version!())
+        .about("Benchmark client for Key Transparency witnesses.")
+        .args(&[
+            arg!(-v... "Sets the level of verbosity"),
+            arg!(--committee <FILE> "The path to the committee file"),
+            arg!(--rate <INT> "The rate (txs/s) at which to send the transactions"),
+            arg!(--proof_entries <INT> "The number of key updates per proof"),
+        ])
+        .setting(AppSettings::ArgRequiredElseHelp)
+        .get_matches();
 
-/// The default channel capacity.
-const CHANNEL_CAPACITY: usize = 1_000;
+    // Configure the logger.
+    let log_level = match matches.occurrences_of("v") {
+        0 => "error",
+        1 => "warn",
+        2 => "info",
+        3 => "debug",
+        _ => "trace",
+    };
+    env_logger::Builder::from_env(Env::default().default_filter_or(log_level))
+        .format_timestamp_millis()
+        .init();
+
+    // Parse the input parameters.
+    let committee_file = matches.value_of("committee").unwrap();
+    let committee = Committee::import(committee_file).context("Failed to load committee")?;
+    let rate = matches
+        .value_of("rate")
+        .unwrap()
+        .parse::<u64>()
+        .context("The rate of transactions must be a non-negative integer")?;
+    let proof_entries = matches
+        .value_of("proof_entries")
+        .unwrap()
+        .parse::<usize>()
+        .context("The number of key updates per proof must be a non-negative integer")?;
+
+    // Make a benchmark client.
+    let client = BenchmarkClient::new(committee, rate, proof_entries);
+    client.print_parameters();
+
+    // Wait for all nodes to be online and synchronized.
+    client.wait().await;
+
+    // Start the benchmark.
+    client
+        .benchmark()
+        .await
+        .context("Failed to submit transactions")
+}
 
 /// A client only useful to benchmark the witnesses.
 pub struct BenchmarkClient {
-    /// The network addresses of the witnesses (i.e., where to submit requests).
-    targets: Vec<SocketAddr>,
     /// The committee information.
     committee: Committee,
     /// The number of requests per second that this client submits.
     rate: u64,
+    /// The number of key updates per proof.
     proof_entries: usize,
+    /// The network address of the witnesses.
+    targets: Vec<SocketAddr>,
 }
 
 impl BenchmarkClient {
     /// Creates a new benchmark client.
-    pub fn new(
-        targets: Vec<SocketAddr>,
-        committee: Committee,
-        rate: u64,
-        proof_entries: usize,
-    ) -> Self {
+    pub fn new(committee: Committee, rate: u64, proof_entries: usize) -> Self {
+        let targets: Vec<_> = committee
+            .witnesses_addresses()
+            .into_iter()
+            .map(|(_, x)| x)
+            .collect();
+
         Self {
-            targets,
             committee,
             rate,
             proof_entries,
+            targets,
         }
     }
 
@@ -72,150 +125,77 @@ impl BenchmarkClient {
         .await;
     }
 
-    /*
-    /// Create a connection with all the targets.
-    fn connect(&self, tx_response: Sender<Bytes>) -> Vec<Sender<Bytes>> {
-        self.targets
-            .iter()
-            .map(|target| {
-                let (tx_request, rx_request) = channel(CHANNEL_CAPACITY);
-                Connection::spawn(*target, rx_request, tx_response.clone());
-                tx_request
-            })
-            .collect()
-    }
-    */
-
-    fn send_requests(&self, tx_certificate: Sender<Bytes>) -> JoinHandle<()> {
+    /// Run a benchmark with the provided parameters.
+    pub async fn benchmark(&self) -> Result<()> {
         const PRECISION: u64 = 1; // Timing burst precision.
         const BURST_DURATION: u64 = 1000 / PRECISION;
         let burst = self.rate / PRECISION;
         let mut counter = 0; // Identifies sample transactions.
 
         // Connect to the witnesses.
-        let mut network = SimpleSender::new();
+        let mut network = ReliableSender::new();
 
-        // Submit requests.
-        let proof_entries = self.proof_entries;
-        let witnesses: Vec<_> = self
-            .committee
-            .witnesses_addresses()
-            .into_iter()
-            .map(|(_, x)| x)
-            .collect();
-        tokio::spawn(async move {
-            // Initiate the generator of dumb requests.
-            let generator = NotificationGenerator::new(proof_entries).await;
+        // Initiate the generator of dumb requests.
+        let notification_generator = NotificationGenerator::new(self.proof_entries).await;
+        let mut certificate_generator = CertificateGenerator::new(self.committee.clone());
 
-            // Submit all transactions.
-            let interval = interval(Duration::from_millis(BURST_DURATION));
-            tokio::pin!(interval);
+        // Gather certificates handles to sink their response.
+        let mut certificate_responses = FuturesUnordered::new();
 
-            // NOTE: This log entry is used to compute performance.
-            info!("Start sending transactions");
+        // Submit all transactions.
+        let interval = interval(Duration::from_millis(BURST_DURATION));
+        tokio::pin!(interval);
 
-            loop {
-                interval.tick().await;
-                let now = Instant::now();
-                for x in 0..burst {
-                    let id = counter * burst + x;
-                    let bytes = generator.make_notification(id);
+        // NOTE: This log entry is used to compute performance.
+        info!("Start sending transactions");
+        loop {
+            tokio::select! {
+                _ = interval.tick() => {
+                    let now = Instant::now();
+                    'burst: for x in 0..burst {
+                        let id = counter * burst + x;
+                        let bytes = notification_generator.make_notification(id);
 
-                    if x == counter % burst {
-                        // NOTE: This log entry is used to compute performance.
-                        info!("Sending sample transaction {}", id);
-                    }
-
-                    network.broadcast(witnesses.clone(), bytes).await;
-                }
-                counter += 1;
-
-                if now.elapsed().as_millis() > BURST_DURATION as u128 {
-                    // NOTE: This log entry is used to compute performance.
-                    warn!("Transaction rate too high for this client");
-                }
-            }
-        })
-    }
-
-    /*
-    fn send_certificates(&self, mut rx_certificate: Receiver<Bytes>) -> JoinHandle<()> {
-        let (tx_response, mut rx_response) = channel(CHANNEL_CAPACITY);
-
-        // Initiate the generator of dumb certificates.
-        let tx_maker = DumbCertificateMaker {
-            committee: self.committee.clone(),
-        };
-
-        // Connect to the authorities.
-        let connection_handlers = self.connect(tx_response);
-
-        // Try to assemble certificates and disseminate them.
-        tokio::spawn(async move {
-            let mut aggregators = HashMap::new();
-            let mut last_id = 0;
-            'main: loop {
-                tokio::select! {
-                    Some(bytes) = rx_certificate.recv() => {
-                        match deserialize_message(&*bytes).unwrap() {
-                            SerializedMessage::InfoResponse(response) => {
-                                let id = response
-                                    .account_id
-                                    .sequence_number()
-                                    .unwrap()
-                                    .0;
-
-                                // Ensures `aggregators` does not make use run out of memory.
-                                if id < last_id {
-                                    debug!("Drop vote {} (<{})", id, last_id);
-                                    continue;
-                                }
-
-                                // Check if we got a certificate.
-                                let account_id = response.account_id.clone();
-                                if let Some(bytes) = tx_maker.try_make_certificate(response, &mut aggregators).unwrap() {
-                                    aggregators.retain(|k, _| k.sequence_number().unwrap() >= account_id.sequence_number().unwrap());
-                                    last_id = id;
-
-                                    // NOTE: This log entry is used to compute performance.
-                                    info!("Assembled certificate {}", id);
-
-                                    for handler in &connection_handlers {
-                                        if let Err(e) = handler
-                                            .send(bytes.clone())
-                                            .await
-                                            .map_err(|_| BenchError::ConnectionDropped)
-                                        {
-                                            warn!("{}", e);
-                                            break 'main;
-                                        }
-                                    }
-                                }
-                                Ok(())
-                            },
-                            SerializedMessage::Error(e) => Err(BenchError::SerializationError(e.to_string())),
-                            reply => Err(BenchError::UnexpectedReply(reply))
+                        if x == counter % burst {
+                            // NOTE: This log entry is used to compute performance.
+                            info!("Sending sample transaction {}", id);
                         }
-                        .unwrap()
-                    },
-                    Some(_) = rx_response.recv() => {
-                        // Sink responses.
-                    },
-                    else => break
-                }
-            }
-        })
-    }
 
-    /// Run the benchmark.
-    pub async fn benchmark(&self) -> Result<(), BenchError> {
-        let (tx_certificate, rx_certificate) = channel(CHANNEL_CAPACITY);
-        let handler_1 = self.send_requests(tx_certificate);
-        let handler_2 = self.send_certificates(rx_certificate);
-        try_join(handler_1, handler_2)
-            .await
-            .map(|_| ())
-            .map_err(BenchError::from)
+                        let mut wait_for_quorum: FuturesUnordered<_> = network
+                            .broadcast(self.targets.clone(), bytes)
+                            .await
+                            .into_iter()
+                            .collect();
+
+                        while let Some(bytes) = wait_for_quorum.next().await {
+                            let vote = bincode::deserialize(&bytes?)?;
+                            debug!("{:?}", vote);
+                            if let Some(certificate) = certificate_generator.try_make_certificate(vote)
+                            {
+                                network
+                                    .broadcast(self.targets.clone(), certificate)
+                                    .await
+                                    .into_iter()
+                                    .for_each(|handle| certificate_responses.push(handle));
+
+                                certificate_generator.clear();
+                                break 'burst;
+                            }
+                        }
+                    }
+                    counter += 1;
+
+                    if now.elapsed().as_millis() > BURST_DURATION as u128 {
+                        // NOTE: This log entry is used to compute performance.
+                        warn!("Transaction rate too high for this client");
+                    }
+                },
+                Some(_) = certificate_responses.next() => {
+                    // Sink certificate responses
+                },
+                else => break
+            }
+        }
+        Ok(())
     }
-    */
 }

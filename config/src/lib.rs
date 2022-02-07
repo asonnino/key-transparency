@@ -112,9 +112,9 @@ impl Committee {
 #[derive(Serialize, Deserialize)]
 pub struct PrivateConfig {
     /// The public key of this entity.
-    public: PublicKey,
+    pub public: PublicKey,
     /// The private key of this entity.
-    secret: KeyPair,
+    pub secret: KeyPair,
 }
 
 impl Default for PrivateConfig {
