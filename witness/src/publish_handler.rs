@@ -1,7 +1,7 @@
 use crate::Replier;
 use config::Committee;
 use crypto::KeyPair;
-use log::{debug, warn};
+use log::{debug, info, warn};
 use messages::error::{WitnessError, WitnessResult};
 use messages::publish::{PublishCertificate, PublishMessage, PublishNotification, PublishVote};
 use messages::sync::State;
@@ -163,11 +163,23 @@ impl PublishHandler {
                         },
                         Ok(()) => {
                             if self.state.sequence_number == certificate.sequence_number() {
-                                debug!("Processing {:?}", certificate);
+                                #[cfg(not(features = "benchmark"))]
+                                info!("Processing {:?}", certificate);
 
                                 // Update the witness state.
-                                self.state.root = *certificate.root();
+                                #[cfg(not(features = "benchmark"))]
+                                {
+                                    // Do not update the state root when running benchmarks. This allows the
+                                    // benchmark client to re-use the same proof (and thus not becoming the
+                                    // CPU bottleneck).
+                                    self.state.root = *certificate.root();
+                                }
+
                                 self.state.sequence_number += 1;
+                                #[cfg(features = "benchmark")]
+                                // NOTE: These log entries are used to compute performance.
+                                info!("New sequence number: {}", self.state.sequence_number);
+
                                 self.state.lock = None;
 
                                 let serialized_state = bincode::serialize(&self.state)

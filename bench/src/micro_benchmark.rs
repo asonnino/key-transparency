@@ -1,11 +1,11 @@
-use akd::directory::Directory;
-use akd::storage::memory::AsyncInMemoryDatabase;
-use akd::storage::types::{AkdLabel, AkdValue};
+mod payload_generator;
+
 use config::Committee;
 use crypto::KeyPair;
 use futures::executor::block_on;
-use messages::publish::{Proof, PublishCertificate, PublishNotification, PublishVote};
-use messages::{Blake3, Root};
+use messages::publish::{PublishCertificate, PublishNotification, PublishVote};
+use messages::Root;
+use payload_generator::custom_size_proof;
 use statistical::{mean, standard_deviation};
 use std::time::Instant;
 use test_utils::{certificate, committee, keys, notification, votes};
@@ -63,32 +63,6 @@ where
     );
 }
 
-/// Create a publish proof from a tree with the specified number of key-value pairs.
-fn proof(entries: usize) -> (Root, Root, Proof) {
-    // Create the list of 64-bytes key-value pairs (in memory).
-    let items: Vec<_> = (0..entries)
-        .map(|i| {
-            let key = format!("key-{:>27}", i);
-            let value = format!("value-{:>25}", i);
-            (AkdLabel(key), AkdValue(value))
-        })
-        .collect();
-
-    // Create a test tree with the specified number of key-values.
-    let db = AsyncInMemoryDatabase::new();
-    let mut akd = block_on(Directory::<_>::new::<Blake3>(&db)).unwrap();
-    block_on(akd.publish::<Blake3>(items, false)).unwrap();
-
-    // Compute the start root (at sequence 0) and end root (at sequence 1).
-    let current_azks = block_on(akd.retrieve_current_azks()).unwrap();
-    let start = block_on(akd.get_root_hash_at_epoch::<Blake3>(&current_azks, 0)).unwrap();
-    let end = block_on(akd.get_root_hash_at_epoch::<Blake3>(&current_azks, 1)).unwrap();
-
-    // Generate the audit proof.
-    let proof = block_on(akd.audit::<Blake3>(0, 1)).unwrap();
-    (start, end, proof)
-}
-
 /// Benchmark the creation of a publish notification.
 fn create_notification() {
     struct Data(KeyPair);
@@ -100,7 +74,7 @@ fn create_notification() {
 
     let run = |data: &Data| {
         let Data(keypair) = data;
-        let (_, root, proof) = proof(TREE_ENTRIES);
+        let (_, root, proof) = block_on(custom_size_proof(TREE_ENTRIES));
         PublishNotification::new(root, proof, 1, keypair)
     };
 
@@ -113,7 +87,7 @@ fn verify_notification() {
 
     let setup = || {
         let (_, keypair) = keys().pop().unwrap();
-        let (_, root, proof) = proof(TREE_ENTRIES);
+        let (_, root, proof) = block_on(custom_size_proof(TREE_ENTRIES));
         let notification = PublishNotification::new(root, proof, 1, &keypair);
         Data(notification, committee(0), Root::default())
     };
