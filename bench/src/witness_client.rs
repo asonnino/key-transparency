@@ -2,7 +2,8 @@ mod payload_generator;
 
 use anyhow::{Context, Result};
 use clap::{arg, crate_name, crate_version, App, AppSettings};
-use config::{Committee, Import};
+use config::{Committee, Import, PrivateConfig};
+use crypto::KeyPair;
 use env_logger::Env;
 use futures::future::join_all;
 use futures::stream::futures_unordered::FuturesUnordered;
@@ -22,6 +23,7 @@ async fn main() -> Result<()> {
         .about("Benchmark client for Key Transparency witnesses.")
         .args(&[
             arg!(-v... "Sets the level of verbosity"),
+            arg!(--idp <FILE> "The keypair of the IdP"),
             arg!(--committee <FILE> "The path to the committee file"),
             arg!(--rate <INT> "The rate (txs/s) at which to send the transactions"),
             arg!(--proof_entries <INT> "The number of key updates per proof"),
@@ -42,13 +44,18 @@ async fn main() -> Result<()> {
         .init();
 
     // Parse the input parameters.
+    let idp_file = matches.value_of("idp").unwrap();
+    let idp = PrivateConfig::import(idp_file).context("Failed to load IdP key file")?;
+
     let committee_file = matches.value_of("committee").unwrap();
     let committee = Committee::import(committee_file).context("Failed to load committee")?;
+
     let rate = matches
         .value_of("rate")
         .unwrap()
         .parse::<u64>()
         .context("The rate of transactions must be a non-negative integer")?;
+
     let proof_entries = matches
         .value_of("proof_entries")
         .unwrap()
@@ -56,7 +63,7 @@ async fn main() -> Result<()> {
         .context("The number of key updates per proof must be a non-negative integer")?;
 
     // Make a benchmark client.
-    let client = BenchmarkClient::new(committee, rate, proof_entries);
+    let client = BenchmarkClient::new(idp.secret, committee, rate, proof_entries);
     client.print_parameters();
 
     // Wait for all nodes to be online and synchronized.
@@ -71,6 +78,8 @@ async fn main() -> Result<()> {
 
 /// A client only useful to benchmark the witnesses.
 pub struct BenchmarkClient {
+    /// The key pair of the IdP.
+    idp: KeyPair,
     /// The committee information.
     committee: Committee,
     /// The number of requests per second that this client submits.
@@ -83,7 +92,7 @@ pub struct BenchmarkClient {
 
 impl BenchmarkClient {
     /// Creates a new benchmark client.
-    pub fn new(committee: Committee, rate: u64, proof_entries: usize) -> Self {
+    pub fn new(idp: KeyPair, committee: Committee, rate: u64, proof_entries: usize) -> Self {
         let targets: Vec<_> = committee
             .witnesses_addresses()
             .into_iter()
@@ -91,6 +100,7 @@ impl BenchmarkClient {
             .collect();
 
         Self {
+            idp,
             committee,
             rate,
             proof_entries,
@@ -136,7 +146,8 @@ impl BenchmarkClient {
         let mut network = ReliableSender::new();
 
         // Initiate the generator of dumb requests.
-        let notification_generator = NotificationGenerator::new(self.proof_entries).await;
+        let notification_generator =
+            NotificationGenerator::new(&self.idp, self.proof_entries).await;
         let mut certificate_generator = CertificateGenerator::new(self.committee.clone());
 
         // Gather certificates handles to sink their response.

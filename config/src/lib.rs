@@ -112,7 +112,7 @@ impl Committee {
 #[derive(Serialize, Deserialize)]
 pub struct PrivateConfig {
     /// The public key of this entity.
-    pub public: PublicKey,
+    pub name: PublicKey,
     /// The private key of this entity.
     pub secret: KeyPair,
 }
@@ -126,8 +126,8 @@ impl Default for PrivateConfig {
 impl PrivateConfig {
     /// Creates a new private configuration.
     pub fn new() -> Self {
-        let (public, secret) = KeyPair::generate_production_keypair();
-        Self { public, secret }
+        let (name, secret) = KeyPair::generate_production_keypair();
+        Self { name, secret }
     }
 }
 

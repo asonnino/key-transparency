@@ -11,13 +11,18 @@ async fn main() -> Result<()> {
     let matches = App::new(crate_name!())
         .version(crate_version!())
         .about("Benchmark client for Key Transparency witnesses.")
-        .args(&[
-            arg!(-v... "Sets the level of verbosity"),
+        .arg(arg!(-v... "Sets the level of verbosity"))
+        .subcommand(
+            App::new("generate")
+                .about("Print a fresh key pair to file")
+                .arg(arg!(--keypair <FILE> "The path to the witness keypair")),
+        )
+        .subcommand(App::new("run").about("Run a witness").args(&[
             arg!(--committee <FILE> "The path to the committee file"),
             arg!(--keypair <FILE> "The path to the witness keypair"),
             arg!(--secure_storage <FILE> "The directory to hold the secure storage"),
             arg!(--audit_storage <FILE> "The directory to hold the audit storage"),
-        ])
+        ]))
         .setting(AppSettings::ArgRequiredElseHelp)
         .get_matches();
 

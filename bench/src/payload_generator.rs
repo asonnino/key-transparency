@@ -42,19 +42,18 @@ pub async fn custom_size_proof(entries: usize) -> (Root, Root, Proof) {
 }
 
 /// Make dumb (but valid) publish notifications.
-pub struct NotificationGenerator {
-    /// A random keypair to generate the notification.
-    keypair: KeyPair,
+pub struct NotificationGenerator<'a> {
+    /// The keypair of the IdP to generate the notification.
+    keypair: &'a KeyPair,
     /// The end state root (to verify the proof).
     root: Root,
     /// A state proof to re-use in every notification.
     proof: Proof,
 }
 
-impl NotificationGenerator {
-    pub async fn new(proof_entries: usize) -> Self {
+impl<'a> NotificationGenerator<'a> {
+    pub async fn new(keypair: &'a KeyPair, proof_entries: usize) -> NotificationGenerator<'a> {
         let (_, root, proof) = custom_size_proof(proof_entries).await;
-        let (_, keypair) = KeyPair::generate_production_keypair();
         Self {
             keypair,
             root,
