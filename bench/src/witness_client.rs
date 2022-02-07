@@ -1,10 +1,9 @@
 mod payload_generator;
 
 use anyhow::{Context, Result};
-use clap::{arg, crate_name, crate_version, App, AppSettings};
+use clap::{arg, crate_name, crate_version, App, AppSettings, Arg};
 use config::{Committee, Import, PrivateConfig};
 use crypto::KeyPair;
-use env_logger::Env;
 use futures::future::join_all;
 use futures::stream::futures_unordered::FuturesUnordered;
 use futures::stream::StreamExt;
@@ -21,8 +20,8 @@ async fn main() -> Result<()> {
     let matches = App::new(crate_name!())
         .version(crate_version!())
         .about("Benchmark client for Key Transparency witnesses.")
+        .arg(Arg::new("verbose").multiple_occurrences(true).short('v'))
         .args(&[
-            arg!(-v... "Sets the level of verbosity"),
             arg!(--idp <FILE> "The keypair of the IdP"),
             arg!(--committee <FILE> "The path to the committee file"),
             arg!(--rate <INT> "The rate (txs/s) at which to send the transactions"),
@@ -32,15 +31,17 @@ async fn main() -> Result<()> {
         .get_matches();
 
     // Configure the logger.
-    let log_level = match matches.occurrences_of("v") {
-        0 => "error",
-        1 => "warn",
-        2 => "info",
-        3 => "debug",
-        _ => "trace",
+    let log_level = match matches.occurrences_of("verbose") {
+        0 => log::LevelFilter::Error,
+        1 => log::LevelFilter::Warn,
+        2 => log::LevelFilter::Info,
+        3 => log::LevelFilter::Debug,
+        _ => log::LevelFilter::Trace,
     };
-    env_logger::Builder::from_env(Env::default().default_filter_or(log_level))
+    env_logger::Builder::new()
         .format_timestamp_millis()
+        .filter_module("witness", log_level)
+        .filter_module("network", log_level)
         .init();
 
     // Parse the input parameters.
