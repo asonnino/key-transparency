@@ -63,12 +63,8 @@ impl<'a> NotificationGenerator<'a> {
 
     /// Make a dummy (but valid) publish notification.
     pub fn make_notification(&self, sequence_number: u64) -> Bytes {
-        let notification = PublishNotification::new(
-            self.root,
-            self.proof.clone(),
-            sequence_number,
-            &self.keypair,
-        );
+        let notification =
+            PublishNotification::new(self.root, self.proof.clone(), sequence_number, self.keypair);
         let message = IdPToWitnessMessage::PublishNotification(notification);
         let serialized = bincode::serialize(&message).unwrap();
         Bytes::from(serialized)

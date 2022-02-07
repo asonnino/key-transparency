@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
-use clap::{arg, crate_name, crate_version, App, AppSettings};
-use config::{Committee, Import, PrivateConfig};
+use clap::{arg, crate_name, crate_version, App, AppSettings, ArgMatches};
+use config::{Committee, Export, Import, PrivateConfig};
 use env_logger::Env;
 use storage::Storage;
 use witness::spawn_witness;
@@ -39,6 +39,20 @@ async fn main() -> Result<()> {
         .init();
 
     // Parse the input parameters.
+    match matches.subcommand() {
+        Some(("generate", sub_matches)) => PrivateConfig::new()
+            .export(sub_matches.value_of("filename").unwrap())
+            .context("Failed to generate key pair")?,
+        Some(("run", sub_matches)) => spawn(sub_matches)
+            .await
+            .context("Failed to spawn witness")?,
+        _ => unreachable!(),
+    }
+    Ok(())
+}
+
+/// Spawn a witness
+async fn spawn(matches: &ArgMatches) -> Result<()> {
     let committee_file = matches.value_of("committee").unwrap();
     let committee = Committee::import(committee_file).context("Failed to load committee")?;
 
