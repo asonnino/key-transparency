@@ -1,6 +1,6 @@
 mod payload_generator;
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use clap::{arg, crate_name, crate_version, App, AppSettings, Arg};
 use config::{Committee, Import, PrivateConfig};
 use crypto::KeyPair;
@@ -8,6 +8,7 @@ use futures::future::join_all;
 use futures::stream::futures_unordered::FuturesUnordered;
 use futures::stream::StreamExt;
 use log::{debug, info, warn};
+use messages::WitnessToIdPMessage;
 use network::reliable_sender::ReliableSender;
 use payload_generator::{CertificateGenerator, NotificationGenerator};
 use std::net::SocketAddr;
@@ -164,7 +165,7 @@ impl BenchmarkClient {
             tokio::select! {
                 _ = interval.tick() => {
                     let now = Instant::now();
-                    'burst: for x in 0..burst {
+                    for x in 1..=burst {
                         let id = counter * burst + x;
                         let bytes = notification_generator.make_notification(id);
 
@@ -180,7 +181,11 @@ impl BenchmarkClient {
                             .collect();
 
                         while let Some(bytes) = wait_for_quorum.next().await {
-                            let vote = bincode::deserialize(&bytes?)?;
+                            let result = match bincode::deserialize(&bytes?)? {
+                                WitnessToIdPMessage::PublishVote(result) => result,
+                                _ => return Err(anyhow!("Unexpected protocol message"))
+                            };
+                            let vote = result.context("Witness returned error")?;
                             debug!("{:?}", vote);
                             if let Some(certificate) = certificate_generator.try_make_certificate(vote)
                             {
@@ -191,7 +196,7 @@ impl BenchmarkClient {
                                     .for_each(|handle| certificate_responses.push(handle));
 
                                 certificate_generator.clear();
-                                break 'burst;
+                                break;
                             }
                         }
                     }

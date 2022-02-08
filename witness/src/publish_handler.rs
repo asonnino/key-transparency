@@ -163,11 +163,11 @@ impl PublishHandler {
                         },
                         Ok(()) => {
                             if self.state.sequence_number == certificate.sequence_number() {
-                                #[cfg(not(features = "benchmark"))]
+                                #[cfg(not(feature = "benchmark"))]
                                 info!("Processing {:?}", certificate);
 
                                 // Update the witness state.
-                                #[cfg(not(features = "benchmark"))]
+                                #[cfg(not(feature = "benchmark"))]
                                 {
                                     // Do not update the state root when running benchmarks. This allows the
                                     // benchmark client to re-use the same proof (and thus not becoming the
@@ -176,7 +176,7 @@ impl PublishHandler {
                                 }
 
                                 self.state.sequence_number += 1;
-                                #[cfg(features = "benchmark")]
+                                #[cfg(feature = "benchmark")]
                                 // NOTE: These log entries are used to compute performance.
                                 info!("New sequence number: {}", self.state.sequence_number);
 

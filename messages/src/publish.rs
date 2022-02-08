@@ -49,7 +49,13 @@ pub struct PublishNotification {
 
 impl std::fmt::Debug for PublishNotification {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(f, "{}: N{}({:?})", self.id, self.sequence_number, self.root)
+        write!(
+            f,
+            "{}: N{}({})",
+            self.id,
+            self.sequence_number,
+            base64::encode(self.root.as_bytes())
+        )
     }
 }
 
@@ -125,11 +131,11 @@ impl std::fmt::Debug for PublishVote {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
         write!(
             f,
-            "{}: V{}({}, {:?})",
+            "{}: V{}({}, {})",
             self.digest(),
             self.sequence_number,
             self.author,
-            self.root
+            base64::encode(self.root.as_bytes())
         )
     }
 }
@@ -200,10 +206,10 @@ impl std::fmt::Debug for PublishCertificate {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
         write!(
             f,
-            "{}: C{}({:?})",
+            "{}: C{}({})",
             self.digest(),
             self.sequence_number,
-            self.root
+            base64::encode(self.root.as_bytes())
         )
     }
 }

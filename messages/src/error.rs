@@ -33,7 +33,7 @@ pub enum MessageError {
     #[error("Invalid signature: {0}")]
     InvalidSignature(String),
 
-    #[error("Received message from unknown witness {0}")]
+    #[error("Message signed by unknown witness {0}")]
     UnknownWitness(PublicKey),
 
     #[error("Witness {0} appears in quorum more than once")]
@@ -73,7 +73,7 @@ pub enum WitnessError {
     #[error(transparent)]
     MessageError(#[from] MessageError),
 
-    #[error("Received unexpected sequence number, received {expected} but got {got}")]
+    #[error("Received unexpected sequence number, expected {expected} but got {got}")]
     UnexpectedSequenceNumber {
         expected: SequenceNumber,
         got: SequenceNumber,

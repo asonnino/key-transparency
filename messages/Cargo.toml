@@ -12,6 +12,7 @@ winter-crypto = "0.2"
 winter-math = "0.2"
 winter-utils = "0.2"
 futures = "0.3.19"
+base64 = "0.13.0"
 
 crypto = { path = "../crypto" }
 config = { path = "../config" }
