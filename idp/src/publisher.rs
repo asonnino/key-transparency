@@ -9,7 +9,7 @@ use futures::stream::StreamExt;
 use log::{debug, info, warn};
 use messages::error::{IdpError, IdpResult, WitnessError};
 use messages::publish::{PublishNotification, PublishVote};
-use messages::{IdPToWitnessMessage, SequenceNumber, WitnessToIdPMessage};
+use messages::{IdPToWitnessMessage, Root, SequenceNumber, WitnessToIdPMessage};
 use network::reliable_sender::{CancelHandler, ReliableSender};
 use std::net::SocketAddr;
 use storage::Storage;
@@ -56,7 +56,9 @@ impl Publisher {
                 network: ReliableSender::new(),
                 names,
                 addresses,
-                aggregator: Aggregator::new(committee),
+                // The aggregator will be reset with the correct root hash upon receiving the
+                // first publish notification.
+                aggregator: Aggregator::new(committee, Root::default()),
             }
             .run()
             .await;
@@ -105,6 +107,9 @@ impl Publisher {
         notification: PublishNotification,
     ) -> Vec<(CancelHandler, PublicKey)> {
         let sequence_number = notification.sequence_number;
+
+        // Reset the aggregator to hold the votes for ths notification.
+        self.aggregator.reset(notification.root);
 
         // Serialize the notification.
         let message = IdPToWitnessMessage::PublishNotification(notification);
@@ -163,7 +168,14 @@ impl Publisher {
             };
 
             // Check if we got enough votes to make a certificate.
-            if let Some(certificate) = self.aggregator.append(vote) {
+            let potential_certificate = match self.aggregator.append(vote) {
+                Ok(x) => x,
+                Err(e) => {
+                    warn!("{}", e);
+                    continue;
+                }
+            };
+            if let Some(certificate) = potential_certificate {
                 // NOTE: This log entry is used to compute performance.
                 info!("Processed {:?}", certificate);
 
@@ -194,8 +206,7 @@ impl Publisher {
                     .zip(self.names.iter().cloned())
                     .collect();
 
-                // Clear the aggregator and stop waiting for votes.
-                self.aggregator.clear();
+                // Stop waiting for votes.
                 return handles;
             }
         }

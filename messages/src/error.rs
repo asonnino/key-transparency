@@ -108,4 +108,14 @@ pub enum IdpError {
 
     #[error("Received unexpected protocol message")]
     UnexpectedProtocolMessage,
+
+    #[error("Received unexpected vote: {expected:?} != {received:?}")]
+    UnexpectedVote {
+        #[serde(serialize_with = "serialize_root")]
+        #[serde(deserialize_with = "deserialize_root")]
+        expected: Root,
+        #[serde(serialize_with = "serialize_root")]
+        #[serde(deserialize_with = "deserialize_root")]
+        received: Root,
+    },
 }
