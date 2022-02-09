@@ -11,6 +11,7 @@ use tokio::sync::mpsc::Receiver;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 
+/// The maximum number of pending updates per witness.
 const MAX_PENDING_UPDATES: usize = 100;
 
 /// Signal to the synchronizer to update a specific witness.
