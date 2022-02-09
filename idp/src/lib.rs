@@ -14,6 +14,3 @@ pub type Batch = Vec<Request>;
 
 /// Storage address of the sequence number.
 pub const STORE_LAST_NOTIFICATION_ADDR: [u8; 32] = [255; 32];
-
-/// Represents a serialized publish notification.
-pub type SerializedPublishNotification = Vec<u8>;

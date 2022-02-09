@@ -2,7 +2,7 @@ pub mod error;
 pub mod publish;
 pub mod sync;
 
-use error::WitnessResult;
+use error::{WitnessError, WitnessResult};
 use publish::{PublishCertificate, PublishNotification, PublishVote};
 use serde::{Deserialize, Serialize};
 use sync::{PublishCertificateQuery, State};
@@ -29,6 +29,25 @@ pub enum WitnessToIdPMessage {
     PublishVote(WitnessResult<PublishVote>),
     State(WitnessResult<State>),
     PublishCertificateResponse(SerializedPublishCertificateMessage),
+}
+
+impl WitnessToIdPMessage {
+    /// Deduce the witness sequence number (if possible) from its message.
+    pub fn sequence_number(&self) -> Option<SequenceNumber> {
+        match self {
+            WitnessToIdPMessage::PublishVote(result) => match result {
+                Ok(vote) => Some(vote.sequence_number),
+                Err(WitnessError::UnexpectedSequenceNumber { expected, .. }) => Some(*expected),
+                _ => None,
+            },
+            WitnessToIdPMessage::State(result) => match result {
+                Ok(vote) => Some(vote.sequence_number),
+                Err(WitnessError::UnexpectedSequenceNumber { expected, .. }) => Some(*expected),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
 }
 
 /// The sequence number of consistent (or reliable) broadcast.
