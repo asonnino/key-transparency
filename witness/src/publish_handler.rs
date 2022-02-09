@@ -176,16 +176,16 @@ impl PublishHandler {
                                 }
 
                                 self.state.sequence_number += 1;
-                                #[cfg(feature = "benchmark")]
-                                // NOTE: These log entries are used to compute performance.
-                                info!("New sequence number: {}", self.state.sequence_number);
-
                                 self.state.lock = None;
 
                                 let serialized_state = bincode::serialize(&self.state)
                                     .expect("Failed to serialize state");
                                 self.storage.write(&STORE_STATE_ADDR, &serialized_state)
                                     .expect("Failed to persist state");
+
+                                #[cfg(feature = "benchmark")]
+                                // NOTE: These log entries are used to compute performance.
+                                info!("Processed certificate {}", certificate.sequence_number());
 
                                 // Send the serialized certificate to the sync helper.
                                 self

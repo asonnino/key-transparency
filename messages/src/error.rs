@@ -23,6 +23,7 @@ macro_rules! ensure {
 /// Convenient result wrappers.
 pub type MessageResult<T> = Result<T, MessageError>;
 pub type WitnessResult<T> = Result<T, WitnessError>;
+pub type IdpResult<T> = Result<T, IdpError>;
 
 /// Errors triggered when parsing and verifying protocol messages.
 #[derive(Debug, Error, Serialize, Deserialize)]
@@ -91,4 +92,20 @@ pub enum WitnessError {
 
     #[error("Missing earlier certificates, current sequence number at {0}")]
     MissingEarlierCertificates(SequenceNumber),
+}
+
+/// Errors triggered by the IdP.
+#[derive(Debug, Error, Serialize, Deserialize)]
+pub enum IdpError {
+    #[error(transparent)]
+    MessageError(#[from] MessageError),
+
+    #[error(transparent)]
+    WitnessError(#[from] WitnessError),
+
+    #[error("The publish request is too short (min 2 bytes)")]
+    InvalidRequest,
+
+    #[error("Received unexpected protocol message")]
+    UnexpectedProtocolMessage,
 }

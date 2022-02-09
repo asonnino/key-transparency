@@ -31,7 +31,7 @@ pub trait PublishMessage {
 }
 
 /// An publish notification sent by the IdP to the witnesses to request votes.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct PublishNotification {
     /// The root committing to the new state.
     #[serde(serialize_with = "serialize_root")]

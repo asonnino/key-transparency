@@ -84,7 +84,7 @@ pub struct BenchmarkClient {
     idp: KeyPair,
     /// The committee information.
     committee: Committee,
-    /// The number of requests per second that this client submits.
+    /// The number of requests per seconds that this client submits.
     rate: u64,
     /// The number of key updates per proof.
     proof_entries: usize,
@@ -169,10 +169,8 @@ impl BenchmarkClient {
                         let id = counter * burst + x;
                         let bytes = notification_generator.make_notification(id);
 
-                        if x == counter % burst {
-                            // NOTE: This log entry is used to compute performance.
-                            info!("Sending sample transaction {}", id);
-                        }
+                        // NOTE: This log entry is used to compute performance.
+                        info!("Sending sample transaction {}", id);
 
                         let mut wait_for_quorum: FuturesUnordered<_> = network
                             .broadcast(self.targets.clone(), bytes)
@@ -189,6 +187,9 @@ impl BenchmarkClient {
                             debug!("{:?}", vote);
                             if let Some(certificate) = certificate_generator.try_make_certificate(vote)
                             {
+                                // NOTE: This log entry is used to compute performance.
+                                info!("Assembled certificate {}", id);
+
                                 network
                                     .broadcast(self.targets.clone(), certificate)
                                     .await
@@ -208,7 +209,7 @@ impl BenchmarkClient {
                     }
                 },
                 Some(_) = certificate_responses.next() => {
-                    // Sink certificate responses
+                    // Sink certificates' responses
                 },
                 else => break
             }
