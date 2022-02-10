@@ -1,4 +1,4 @@
-mod payload_generator;
+mod utils;
 
 use anyhow::{anyhow, Context, Result};
 use clap::{arg, crate_name, crate_version, App, AppSettings, Arg};
@@ -10,10 +10,10 @@ use futures::stream::StreamExt;
 use log::{debug, info, warn};
 use messages::WitnessToIdPMessage;
 use network::reliable_sender::ReliableSender;
-use payload_generator::{CertificateGenerator, NotificationGenerator};
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tokio::time::{interval, sleep, Duration, Instant};
+use utils::{CertificateGenerator, NotificationGenerator};
 
 #[tokio::main]
 async fn main() -> Result<()> {

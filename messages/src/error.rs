@@ -48,6 +48,9 @@ pub enum MessageError {
 
     #[error("State proof verification failed: {0}")]
     PoofVerificationFailed(String),
+
+    #[error("The update request is too short (min 2 bytes)")]
+    UpdateRequestTooShort,
 }
 
 impl From<CryptoError> for MessageError {
@@ -102,9 +105,6 @@ pub enum IdpError {
 
     #[error(transparent)]
     WitnessError(#[from] WitnessError),
-
-    #[error("The publish request is too short (min 2 bytes)")]
-    InvalidRequest,
 
     #[error("Received unexpected protocol message")]
     UnexpectedProtocolMessage,

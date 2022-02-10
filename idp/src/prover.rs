@@ -1,9 +1,10 @@
-use crate::{Batch, STORE_LAST_NOTIFICATION_ADDR};
+use crate::STORE_LAST_NOTIFICATION_ADDR;
 use akd::directory::Directory;
 use akd::storage::memory::AsyncInMemoryDatabase;
 use crypto::KeyPair;
 use futures::executor::block_on;
 use messages::publish::{Proof, PublishNotification};
+use messages::update::Batch;
 use messages::{Blake3, Root, SequenceNumber};
 use storage::Storage;
 use tokio::sync::mpsc::{Receiver, Sender};

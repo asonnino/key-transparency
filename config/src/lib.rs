@@ -52,7 +52,16 @@ pub trait Export: Serialize {
 /// Denomination of the voting power of each witness.
 pub type VotingPower = u32;
 
-/// The public information of a witness./
+/// The public information of the IdP.
+#[derive(Clone, Deserialize)]
+pub struct Idp {
+    /// The public key of the Idp.
+    pub name: PublicKey,
+    /// The network addresses to receive client update requests.
+    pub address: SocketAddr,
+}
+
+/// The public information of a witness.
 #[derive(Clone, Deserialize)]
 pub struct Witness {
     /// The voting power of this witness.
@@ -64,7 +73,7 @@ pub struct Witness {
 /// The (public) committee information.
 #[derive(Clone, Deserialize)]
 pub struct Committee {
-    pub identity_provider: PublicKey,
+    pub idp: Idp,
     pub witnesses: BTreeMap<PublicKey, Witness>,
 }
 

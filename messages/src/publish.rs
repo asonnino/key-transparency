@@ -102,8 +102,7 @@ impl PublishNotification {
         );
 
         // Verify the signature on the publish notification
-        self.signature
-            .verify(&self.id, &committee.identity_provider)?;
+        self.signature.verify(&self.id, &committee.idp.name)?;
 
         // Verify the commit proof.
         akd::auditor::audit_verify::<Blake3>(*previous_root, self.root, self.proof.clone()).await?;

@@ -9,7 +9,7 @@ async fn main() -> Result<()> {
     // Read the cli parameters.
     let matches = App::new(crate_name!())
         .version(crate_version!())
-        .about("Benchmark client for Key Transparency witnesses.")
+        .about("A Key Transparency witnesses.")
         .arg(Arg::new("verbose").multiple_occurrences(true).short('v'))
         .subcommand(
             App::new("generate")

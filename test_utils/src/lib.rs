@@ -2,7 +2,7 @@ use akd::directory::Directory;
 use akd::storage::memory::AsyncInMemoryDatabase;
 use akd::storage::types::{AkdLabel, AkdValue};
 use bytes::Bytes;
-use config::{Committee, Witness};
+use config::{Committee, Idp, Witness};
 use crypto::{KeyPair, PublicKey};
 use messages::publish::{Proof, PublishCertificate, PublishNotification, PublishVote};
 use messages::IdPToWitnessMessage;
@@ -25,7 +25,10 @@ pub fn keys() -> Vec<(PublicKey, KeyPair)> {
 pub fn committee(base_port: u16) -> Committee {
     let (identity_provider, _) = keys().pop().unwrap();
     Committee {
-        identity_provider,
+        idp: Idp {
+            name: identity_provider,
+            address: format!("127.0.0.1:{}", base_port + 100).parse().unwrap(),
+        },
         witnesses: keys()
             .into_iter()
             .enumerate()

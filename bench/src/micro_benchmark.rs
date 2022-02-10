@@ -1,14 +1,14 @@
-mod payload_generator;
+mod utils;
 
 use config::Committee;
 use crypto::KeyPair;
 use futures::executor::block_on;
 use messages::publish::{PublishCertificate, PublishNotification, PublishVote};
 use messages::Root;
-use payload_generator::custom_size_proof;
 use statistical::{mean, standard_deviation};
 use std::time::Instant;
 use test_utils::{certificate, committee, keys, notification, votes};
+use utils::custom_size_proof;
 
 /// The number of runs used to compute statistics.
 const RUNS: usize = 10;
