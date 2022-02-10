@@ -82,3 +82,38 @@ impl Aggregator {
         Ok(None)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use test_utils::{committee, votes};
+
+    #[tokio::test]
+    async fn make_certificate() {
+        let mut votes = votes().await;
+        let root = votes[0].root;
+        let sequence_number = votes[0].sequence_number;
+        let mut aggregator = Aggregator::new(committee(0), root);
+
+        // Add a quorum of votes.
+        let vote_0 = votes.pop().unwrap();
+        let result = aggregator.append(vote_0);
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
+
+        let vote_1 = votes.pop().unwrap();
+        let result = aggregator.append(vote_1);
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
+
+        let vote_2 = votes.pop().unwrap();
+        let result = aggregator.append(vote_2);
+        assert!(result.is_ok());
+
+        // Verify the resulting certificate.
+        let certificate = result.unwrap().unwrap();
+        assert!(certificate.verify(&committee(0)).is_ok());
+        assert_eq!(certificate.root, root);
+        assert_eq!(certificate.sequence_number, sequence_number);
+    }
+}
