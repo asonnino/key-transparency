@@ -146,7 +146,7 @@ impl Publisher {
 
             // Check if the witness is out of date. If that is the case, update it.
             if let Some(status) = message.sequence_number() {
-                if status > sequence_number {
+                if status < sequence_number {
                     debug!("{} is outdated ({} < {})", author, status, sequence_number);
                     let last_notification = bytes_notification.clone();
                     let handle = self.sync_and_retry(author, status, last_notification).await;
