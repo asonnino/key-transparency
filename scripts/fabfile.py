@@ -14,9 +14,10 @@ def local(ctx, debug=True):
     bench_params = {
         'faults': 0,
         'nodes': 4,
-        'proof_entries': 1_000,
-        'rate': 10,
+        'proof_entries': 100,
+        'rate': 100,
         'duration': 20,
+        'witness-only': True
     }
     try:
         ret = LocalBench(bench_params).run(debug)

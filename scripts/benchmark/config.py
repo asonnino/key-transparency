@@ -32,26 +32,30 @@ class Committee:
         }
     '''
 
-    def __init__(self, idp, addresses, base_port):
-        ''' The `addresses` field looks as follows:
+    def __init__(self, idp, idp_address, witnesses_addresses, base_port):
+        ''' The `witnesses_addresses` field looks as follows:
             { 
                 "name": "host",
                 ...
             }
         '''
         assert isinstance(idp, str)
-        assert isinstance(addresses, OrderedDict)
-        assert all(isinstance(x, str) for x in addresses.keys())
-        assert all(isinstance(x, str) for x in addresses.values())
+        assert isinstance(idp_address, str)
+        assert isinstance(witnesses_addresses, OrderedDict)
+        assert all(isinstance(x, str) for x in witnesses_addresses.keys())
+        assert all(isinstance(x, str) for x in witnesses_addresses.values())
         assert isinstance(base_port, int) and base_port > 1024
 
         self.json = {
-            'identity_provider': idp,
+            'idp': {
+                'name': idp,
+                'address': f'{idp_address}:{base_port}'
+            },
             'witnesses': OrderedDict()
         }
 
-        port = base_port
-        for name, host in addresses.items():
+        port = base_port + 1
+        for name, host in witnesses_addresses.items():
             self.json['witnesses'][name] = {
                 'voting_power': 1,
                 'address': f'{host}:{port}'
@@ -108,8 +112,9 @@ class LocalCommittee(Committee):
         assert isinstance(names, list)
         assert all(isinstance(x, str) for x in names)
         assert isinstance(port, int)
-        addresses = OrderedDict((x, '127.0.0.1') for x in names)
-        super().__init__(idp, addresses, port)
+        idp_address = '127.0.0.1'
+        witnesses_addresses = OrderedDict((x, '127.0.0.1') for x in names)
+        super().__init__(idp, idp_address, witnesses_addresses, port)
 
 
 class BenchParameters:
@@ -137,6 +142,11 @@ class BenchParameters:
                 self.collocate = True
 
             self.duration = int(json['duration'])
+
+            if 'witness-only' in json:
+                self.witness_only = bool(json['witness-only'])
+            else:
+                self.witness_only = False
 
             self.runs = int(json['runs']) if 'runs' in json else 1
         except KeyError as e:
@@ -166,9 +176,7 @@ class PlotParameters:
 
             shards = json['shards']
             shards = shards if isinstance(shards, list) else [shards]
-            if not shards:
-                raise ConfigError('Missing number of shards')
-            self.shards = [int(x) for x in shards]
+            self.shards = [int(x) for x in shards] if shards else [1]
 
             if 'collocate' in json:
                 self.collocate = bool(json['collocate'])
@@ -180,11 +188,6 @@ class PlotParameters:
             if not max_lat:
                 raise ConfigError('Missing max latency')
             self.max_latency = [int(x) for x in max_lat]
-
-            if 'coconut' in json:
-                self.coconut = bool(json['coconut'])
-            else:
-                self.coconut = False
 
         except KeyError as e:
             raise ConfigError(f'Malformed bench parameters: missing key {e}')

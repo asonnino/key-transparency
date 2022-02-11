@@ -51,11 +51,13 @@ class LocalBench:
             sleep(0.5)  # Removing the store may take time.
 
             # Recompile the latest code.
-            cmd = CommandMaker.compile().split()
+            cmd = CommandMaker.compile(self.witness_only).split()
             subprocess.run(cmd, check=True, cwd=PathMaker.node_crate_path())
 
             # Create alias for the client and nodes binary.
-            cmd = CommandMaker.alias_binaries(PathMaker.binary_path())
+            cmd = CommandMaker.alias_binaries(
+                PathMaker.binary_path(), self.witness_only
+            )
             subprocess.run([cmd], shell=True)
 
             # Generate key files for the witnesses.
@@ -81,6 +83,7 @@ class LocalBench:
                 idp_key_file,
                 PathMaker.committee_file(),
                 self.proof_entries,
+                self.witness_only,
                 debug=debug
             )
             log_file = PathMaker.client_log_file(0, 0)

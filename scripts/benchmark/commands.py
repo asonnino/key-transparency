@@ -8,7 +8,7 @@ class CommandMaker:
     @staticmethod
     def cleanup():
         return (
-            f'rm -r .*-db-* ; rm .*.json ; mkdir -p {PathMaker.results_path()}'
+            f'rm -r .*-db* ; rm .*.json ; mkdir -p {PathMaker.results_path()}'
         )
 
     @staticmethod
@@ -16,8 +16,10 @@ class CommandMaker:
         return f'rm -r {PathMaker.logs_path()} ; mkdir -p {PathMaker.logs_path()}'
 
     @staticmethod
-    def compile():
-        return 'cargo build --quiet --release --features benchmark'
+    def compile(witness_only):
+        assert isinstance(witness_only, bool)
+        feature = 'witness-only-benchmark' if witness_only else 'benchmark'
+        return f'cargo build --quiet --release --features {feature}'
 
     @staticmethod
     def generate_key(key_file):
@@ -38,15 +40,17 @@ class CommandMaker:
         )
 
     @staticmethod
-    def run_client(rate, idp, committee, proof_entries, debug=False):
+    def run_client(rate, idp, committee, proof_entries, witness_only, debug=False):
         assert isinstance(idp, str)
         assert isinstance(rate, int)
         assert isinstance(proof_entries, int)
         assert isinstance(committee, str)
+        assert isinstance(witness_only, bool)
         assert isinstance(debug, bool)
         v = '-vvv' if debug else '-vv'
+        bin = 'witness_client' if witness_only else 'idp_client'
         return (
-            f'./witness_client {v} --idp {idp} --rate {rate} '
+            f'./{bin} {v} --idp {idp} --rate {rate} '
             f'--committee {committee} --proof_entries {proof_entries}'
         )
 
@@ -55,11 +59,13 @@ class CommandMaker:
         return 'tmux kill-server'
 
     @staticmethod
-    def alias_binaries(origin):
+    def alias_binaries(origin, witness_only):
         assert isinstance(origin, str)
+        assert isinstance(witness_only, bool)
+        client_bin = 'witness_client' if witness_only else 'idp_client'
         node = join(origin, 'witness')
-        client = join(origin, 'witness_client')
+        client = join(origin, client_bin)
         return (
-            'rm witness ; rm witness_client '
+            f'rm witness ; rm {client_bin}'
             f'; ln -s {node} . ; ln -s {client} .'
         )

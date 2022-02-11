@@ -176,8 +176,9 @@ impl Publisher {
                 }
             };
             if let Some(certificate) = potential_certificate {
+                debug!("Commit {:?}", certificate);
                 // NOTE: This log entry is used to compute performance.
-                info!("Processed {:?}", certificate);
+                info!("Commit {}", certificate);
 
                 // Serialize the certificate.
                 let message = IdPToWitnessMessage::PublishCertificate(certificate);

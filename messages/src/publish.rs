@@ -220,6 +220,12 @@ impl std::fmt::Debug for PublishCertificate {
     }
 }
 
+impl std::fmt::Display for PublishCertificate {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        write!(f, "C{}", self.sequence_number,)
+    }
+}
+
 // Useful for tests.
 impl PartialEq for PublishCertificate {
     fn eq(&self, other: &Self) -> bool {

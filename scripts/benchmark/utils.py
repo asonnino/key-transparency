@@ -55,6 +55,14 @@ class PathMaker:
         return f'.audit-db-{i}{worker_id}'
 
     @staticmethod
+    def idp_secure_db_path():
+        return f'.idp_secure-db'
+
+    @staticmethod
+    def sync_db_path():
+        return f'.sync_secure-db'
+
+    @staticmethod
     def logs_path():
         return 'logs'
 

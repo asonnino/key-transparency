@@ -3,6 +3,7 @@ use config::Committee;
 use crypto::PublicKey;
 use futures::stream::futures_unordered::FuturesUnordered;
 use futures::stream::StreamExt;
+use log::debug;
 use messages::SequenceNumber;
 use network::reliable_sender::{CancelHandler, ReliableSender};
 use std::collections::HashMap;
@@ -86,6 +87,7 @@ impl Synchronizer {
         target: PublicKey,
         witness_sequence_number: SequenceNumber,
     ) -> Vec<CancelHandler> {
+        debug!("Updating {}", target);
         let address = self
             .committee
             .witness_address(&target)
@@ -159,7 +161,6 @@ impl Synchronizer {
                         let handle = self.network.send(address, message).await;
                         pending_retrials.push(Self::retrial_waiter(handle, sender));
                     }
-
                 },
 
                 // Receives newly created IdP's certificates.

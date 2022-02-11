@@ -115,7 +115,7 @@ class LogParser:
 
         ip = search(r'booted on (\d+.\d+.\d+.\d+)', log).group(1)
 
-        tmp = findall(r'\[(.*Z) .* certificate (\d+)', log)
+        tmp = findall(r'\[(.*Z) .* Commit C(\d+)', log)
         tmp = [(int(d), self._to_posix(t)) for t, d in tmp]
         certificates = self._keep_earliest([tmp])  # Unnecessary
 
@@ -181,9 +181,9 @@ class LogParser:
             f' Execution time: {round(duration):,} s\n'
             '\n'
             ' + RESULTS:\n'
-            f' Client TPM: {round(client_tps):,} tx/s\n'
+            f' Client TPS: {round(client_tps):,} tx/s\n'
             f' Client latency: {round(client_latency):,} ms\n'
-            f' End-to-end TPM: {round(end_to_end_tps):,} tx/s\n'
+            f' End-to-end TPS: {round(end_to_end_tps):,} tx/s\n'
             f' End-to-end latency: {round(end_to_end_latency):,} ms\n'
             '-----------------------------------------\n'
         )
