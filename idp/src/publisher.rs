@@ -180,8 +180,9 @@ impl Publisher {
                 info!("Processed {:?}", certificate);
 
                 // Serialize the certificate.
+                let message = IdPToWitnessMessage::PublishCertificate(certificate);
                 let serialized =
-                    bincode::serialize(&certificate).expect("Failed to serialize certificate");
+                    bincode::serialize(&message).expect("Failed to serialize certificate");
 
                 // Send it to the synchronizer and ensure it is correctly stored.
                 let (sender, receiver) = oneshot::channel();
@@ -247,6 +248,8 @@ impl Publisher {
     /// Main loop receiving new notifications to publish.
     async fn run(&mut self) {
         // Gather certificates handles to receive state ack.
+        // TODO: Make this memory-bound (like the synchronizer). A bad witness can make us run out
+        // of memory by never replying to our certificates.
         let mut state_responses = FuturesUnordered::new();
 
         loop {

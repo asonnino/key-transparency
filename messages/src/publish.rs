@@ -59,6 +59,13 @@ impl std::fmt::Debug for PublishNotification {
     }
 }
 
+// Useful for tests.
+impl PartialEq for PublishNotification {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
 impl PublishMessage for PublishNotification {
     fn root(&self) -> &Root {
         &self.root
@@ -210,6 +217,13 @@ impl std::fmt::Debug for PublishCertificate {
             self.sequence_number,
             base64::encode(self.root.as_bytes())
         )
+    }
+}
+
+// Useful for tests.
+impl PartialEq for PublishCertificate {
+    fn eq(&self, other: &Self) -> bool {
+        self.root == other.root && self.sequence_number == other.sequence_number
     }
 }
 

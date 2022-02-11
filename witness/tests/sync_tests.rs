@@ -6,7 +6,7 @@ use messages::sync::{PublishCertificateQuery, State};
 use messages::{IdPToWitnessMessage, WitnessToIdPMessage};
 use network::reliable_sender::ReliableSender;
 use test_utils::{
-    broadcast_certificate, committee, delete_storage, notification, spawn_witnesses, votes,
+    broadcast_certificate, committee, delete_storage, notification, spawn_test_witnesses, votes,
 };
 
 #[tokio::test]
@@ -17,7 +17,7 @@ async fn state_query() {
     let test_id = function_name!();
 
     // Spawn 4 witnesses.
-    spawn_witnesses(&test_id, &committee);
+    spawn_test_witnesses(&test_id, &committee);
     tokio::task::yield_now().await;
 
     // Broadcast a state query.
@@ -55,7 +55,7 @@ async fn sync_request() {
     let test_id = function_name!();
 
     // Spawn 4 witnesses.
-    spawn_witnesses(&test_id, &committee);
+    spawn_test_witnesses(&test_id, &committee);
     tokio::task::yield_now().await;
 
     // Broadcast a certificate.
@@ -94,8 +94,7 @@ async fn sync_request() {
             WitnessToIdPMessage::PublishCertificateResponse(received) => {
                 match bincode::deserialize(&received).unwrap() {
                     IdPToWitnessMessage::PublishCertificate(cert) => {
-                        assert_eq!(cert.root, certificate.root);
-                        assert_eq!(cert.sequence_number, certificate.sequence_number);
+                        assert_eq!(cert, certificate);
                     }
                     _ => panic!("Unexpected response"),
                 }

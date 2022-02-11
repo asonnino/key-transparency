@@ -38,6 +38,7 @@ impl Prover {
         // Run the prover in a new task.
         tokio::spawn(async move {
             // Make or load the akd.
+            // TODO: Use a persistent storage for the db rather than `AsyncInMemoryDatabase`.
             let db = AsyncInMemoryDatabase::new();
             let akd = Directory::<_>::new::<Blake3>(&db)
                 .await

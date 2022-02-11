@@ -1,6 +1,5 @@
 use akd::directory::Directory;
 use akd::storage::memory::AsyncInMemoryDatabase;
-use akd::storage::types::{AkdLabel, AkdValue};
 use bytes::Bytes;
 use config::{Committee, Idp, Witness};
 use crypto::{KeyPair, PublicKey};
@@ -8,8 +7,8 @@ use futures::stream::StreamExt;
 use futures::SinkExt;
 use idp::spawn_idp;
 use messages::publish::{Proof, PublishCertificate, PublishNotification, PublishVote};
-use messages::IdPToWitnessMessage;
-use messages::{Blake3, Root};
+use messages::update::deserialize_request;
+use messages::{Blake3, IdPToWitnessMessage, Root, WitnessToIdPMessage};
 use network::reliable_sender::{CancelHandler, ReliableSender};
 use rand::rngs::StdRng;
 use rand::SeedableRng;
@@ -30,11 +29,10 @@ pub fn keys() -> Vec<(PublicKey, KeyPair)> {
 
 // Test committee.
 pub fn committee(base_port: u16) -> Committee {
-    let (identity_provider, _) = keys().pop().unwrap();
     Committee {
         idp: Idp {
-            name: identity_provider,
-            address: format!("127.0.0.1:{}", base_port + 100).parse().unwrap(),
+            name: keys().pop().unwrap().0,
+            address: format!("127.0.0.1:{}", base_port).parse().unwrap(),
         },
         witnesses: keys()
             .into_iter()
@@ -44,7 +42,7 @@ pub fn committee(base_port: u16) -> Committee {
                     name,
                     Witness {
                         voting_power: 1,
-                        address: format!("127.0.0.1:{}", base_port + i as u16)
+                        address: format!("127.0.0.1:{}", base_port + 1 + i as u16)
                             .parse()
                             .unwrap(),
                     },
@@ -54,20 +52,23 @@ pub fn committee(base_port: u16) -> Committee {
     }
 }
 
+// A test update request.
+pub fn serialized_updates() -> Vec<Bytes> {
+    vec![Bytes::from("AAAA,BBBB"), Bytes::from("CCCC,DDDD")]
+}
+
 // Test proof and root hashes.
 pub async fn proof() -> (Root, Root, Proof) {
+    // Get test key values.
+    let items = serialized_updates()
+        .iter()
+        .map(|x| deserialize_request(x).unwrap())
+        .collect();
+
     // Create a test tree with dumb key-values.
     let db = AsyncInMemoryDatabase::new();
     let mut akd = Directory::<_>::new::<Blake3>(&db).await.unwrap();
-    akd.publish::<Blake3>(
-        vec![
-            (AkdLabel("A".to_string()), AkdValue("B".to_string())),
-            (AkdLabel("C".to_string()), AkdValue("D".to_string())),
-        ],
-        false,
-    )
-    .await
-    .unwrap();
+    akd.publish::<Blake3>(items, false).await.unwrap();
 
     // Compute the start root (at sequence 0) and end root (at sequence 1).
     let current_azks = akd.retrieve_current_azks().await.unwrap();
@@ -122,11 +123,6 @@ pub async fn certificate() -> PublishCertificate {
     }
 }
 
-// A test update request.
-pub fn serialized_update() -> Bytes {
-    Bytes::from([0u8; 64].as_slice())
-}
-
 // Spawn test witnesses.
 pub fn spawn_test_witnesses(test_id: &str, committee: &Committee) {
     delete_storage(test_id);
@@ -152,7 +148,7 @@ pub fn spawn_test_idp(test_id: &str, committee: Committee) {
     let sync_storage_path = format!(".test_sync_storage_{}", test_id);
     let sync_storage = Storage::new(&sync_storage_path).unwrap();
 
-    let batch_size = 2;
+    let batch_size = serialized_updates().len();
     let max_batch_delay = 200;
 
     tokio::spawn(async move {
@@ -176,6 +172,10 @@ pub fn delete_storage(test_id: &str) {
         let audit_storage_path = format!(".test_audit_storage_{}_{}", test_id, i);
         let _ = std::fs::remove_dir_all(&audit_storage_path);
     }
+    let idp_secure_storage_path = format!(".test_idp_secure_storage_{}", test_id);
+    let _ = std::fs::remove_dir_all(&idp_secure_storage_path);
+    let sync_storage_path = format!(".test_sync_storage_{}", test_id);
+    let _ = std::fs::remove_dir_all(&sync_storage_path);
 }
 
 // Broadcast a publish notification to the witnesses.
@@ -225,19 +225,25 @@ pub fn listener(
 
         // Wait for a publish notification and reply with a vote.
         let notification = match transport.next().await {
-            Some(Ok(bytes)) => {
-                let notification = bincode::deserialize(&bytes).unwrap();
-                let vote = PublishVote::new(&notification, &keypair);
-                let serialized = bincode::serialize(&vote).unwrap();
-                transport.send(Bytes::from(serialized)).await.unwrap();
-                notification
-            }
+            Some(Ok(bytes)) => match bincode::deserialize(&bytes).unwrap() {
+                IdPToWitnessMessage::PublishNotification(n) => {
+                    let vote = PublishVote::new(&n, &keypair);
+                    let message = WitnessToIdPMessage::PublishVote(Ok(vote));
+                    let serialized = bincode::serialize(&message).unwrap();
+                    transport.send(Bytes::from(serialized)).await.unwrap();
+                    n
+                }
+                _ => panic!("Unexpected protocol message"),
+            },
             _ => panic!("Failed to receive network message"),
         };
 
         // Wait for a publish certificate.
         let certificate = match transport.next().await {
-            Some(Ok(bytes)) => bincode::deserialize(&bytes).unwrap(),
+            Some(Ok(bytes)) => match bincode::deserialize(&bytes).unwrap() {
+                IdPToWitnessMessage::PublishCertificate(c) => c,
+                _ => panic!("Unexpected protocol message"),
+            },
             _ => panic!("Failed to receive network message"),
         };
 

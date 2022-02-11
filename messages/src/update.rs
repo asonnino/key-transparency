@@ -9,7 +9,8 @@ pub fn deserialize_request(bytes: &[u8]) -> MessageResult<UpdateRequest> {
     if bytes.len() < 2 {
         return Err(MessageError::UpdateRequestTooShort);
     }
-    let mut iter = bytes.chunks(2);
+    let length = bytes.len() / 2 + 1;
+    let mut iter = bytes.chunks(length);
     let key = String::from_utf8_lossy(iter.next().unwrap()).to_string();
     let value = String::from_utf8_lossy(iter.next().unwrap()).to_string();
     Ok((AkdLabel(key), AkdValue(value)))
