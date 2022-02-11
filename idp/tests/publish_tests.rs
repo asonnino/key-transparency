@@ -43,6 +43,9 @@ async fn correct_update() {
         assert!(certificate.verify(&committee).is_ok());
         assert_eq!(certificate, expected_certificate);
     }
+
+    // Delete the storage.
+    delete_storage(&test_id);
 }
 
 #[tokio::test]
@@ -84,4 +87,7 @@ async fn faulty_witness() {
         assert!(certificate.verify(&committee).is_ok());
         assert_eq!(certificate, expected_certificate);
     }
+
+    // Delete the storage.
+    delete_storage(&test_id);
 }
