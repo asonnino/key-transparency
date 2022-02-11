@@ -90,6 +90,9 @@ where
 
     /// Compute an audit proof from a batch of requests.
     async fn make_proof(&mut self, batch: Batch) -> (Root, Proof) {
+        let current = self.sequence_number;
+        let next = current + 1;
+
         // Persist the batch.
         self.akd
             .publish::<Blake3>(batch, /* use_transaction */ false)
@@ -100,14 +103,11 @@ where
         let current_azks = self.akd.retrieve_current_azks().await.unwrap();
         let root = self
             .akd
-            .get_root_hash_at_epoch::<Blake3>(&current_azks, 1)
+            .get_root_hash_at_epoch::<Blake3>(&current_azks, next)
             .await
             .unwrap();
 
         // Generate the audit proof.
-        let current = self.sequence_number;
-        let next = current + 1;
-
         let proof = self
             .akd
             .audit::<Blake3>(current, next)

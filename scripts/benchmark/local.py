@@ -79,15 +79,28 @@ class LocalBench:
 
             # Run the client (it will wait for the witnesses to be ready).
             cmd = CommandMaker.run_client(
+                self.witness_only,
+                PathMaker.committee_file(),
                 rate,
                 idp_key_file,
-                PathMaker.committee_file(),
                 self.proof_entries,
-                self.witness_only,
-                debug=debug
+                debug
             )
             log_file = PathMaker.client_log_file(0, 0)
             self._background_run(cmd, log_file)
+
+            # Run the IdP.
+            if not self.witness_only:
+                cmd = CommandMaker.run_idp(
+                    idp_key_file,
+                    PathMaker.committee_file(),
+                    PathMaker.idp_secure_db_path(),
+                    PathMaker.sync_db_path(),
+                    self.proof_entries,
+                    debug=debug
+                )
+                log_file = PathMaker.idp_log_file()
+                self._background_run(cmd, log_file)
 
             # Run the shards (except the faulty ones).
             for i in range(nodes):

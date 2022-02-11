@@ -2,6 +2,8 @@ benchmark_server
 benchmark_client
 witness_client
 witness
+idp_client
+idp
 
 results
 plots

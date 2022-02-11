@@ -17,7 +17,7 @@ def local(ctx, debug=True):
         'proof_entries': 100,
         'rate': 100,
         'duration': 20,
-        'witness-only': True
+        'witness-only': False
     }
     try:
         ret = LocalBench(bench_params).run(debug)

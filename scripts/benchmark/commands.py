@@ -40,19 +40,36 @@ class CommandMaker:
         )
 
     @staticmethod
-    def run_client(rate, idp, committee, proof_entries, witness_only, debug=False):
-        assert isinstance(idp, str)
-        assert isinstance(rate, int)
-        assert isinstance(proof_entries, int)
+    def run_idp(keypair, committee, secure_store, sync_storage, batch_size, debug=False):
+        assert isinstance(keypair, str)
         assert isinstance(committee, str)
-        assert isinstance(witness_only, bool)
+        assert isinstance(secure_store, str)
+        assert isinstance(sync_storage, str)
+        assert isinstance(batch_size, int)
         assert isinstance(debug, bool)
         v = '-vvv' if debug else '-vv'
-        bin = 'witness_client' if witness_only else 'idp_client'
         return (
-            f'./{bin} {v} --idp {idp} --rate {rate} '
-            f'--committee {committee} --proof_entries {proof_entries}'
+            f'./idp {v} --keypair {keypair} --committee {committee} '
+            f'--secure_storage {secure_store} --sync_storage {sync_storage} '
+            f'--batch_size {batch_size}'
         )
+
+    @staticmethod
+    def run_client(witness_only, committee, rate, idp=None, proof_entries=None, debug=False):
+        assert isinstance(witness_only, bool)
+        assert isinstance(committee, str)
+        assert isinstance(rate, int)
+        assert isinstance(idp, str) or idp is None
+        assert isinstance(proof_entries, int) or proof_entries is None
+        assert isinstance(debug, bool)
+        v = '-vvv' if debug else '-vv'
+        if witness_only:
+            return (
+                f'./witness_client {v} --idp {idp} --rate {rate} '
+                f'--committee {committee} --proof_entries {proof_entries}'
+            )
+        else:
+            return f'./idp_client {v} --rate {rate} --committee {committee}'
 
     @staticmethod
     def kill():
@@ -62,10 +79,17 @@ class CommandMaker:
     def alias_binaries(origin, witness_only):
         assert isinstance(origin, str)
         assert isinstance(witness_only, bool)
-        client_bin = 'witness_client' if witness_only else 'idp_client'
         node = join(origin, 'witness')
-        client = join(origin, client_bin)
-        return (
-            f'rm witness ; rm {client_bin}'
-            f'; ln -s {node} . ; ln -s {client} .'
-        )
+        if witness_only:
+            client = join(origin, 'witness_client')
+            return (
+                'rm witness ; rm witness_client'
+                f'; ln -s {node} . ; ln -s {client} .'
+            )
+        else:
+            client = join(origin, 'idp_client')
+            idp = join(origin, 'idp')
+            return (
+                f'rm witness ; rm idp_client ; rm idp'
+                f'; ln -s {node} . ; ln -s {client} . ; ln -s {idp} .'
+            )

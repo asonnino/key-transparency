@@ -39,3 +39,8 @@ required-features = ["micro-benchmark"]
 name = "witness_client"   
 path = "src/witness_client.rs" 
 required-features = ["witness-only-benchmark"]
+
+[[bin]]         
+name = "idp_client"   
+path = "src/idp_client.rs" 
+required-features = ["benchmark"]

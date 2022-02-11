@@ -15,11 +15,12 @@ class ParseError(Exception):
 
 
 class LogParser:
-    def __init__(self, clients, shards, num_nodes=0, faults=0):
+    def __init__(self, clients, shards, idp, num_nodes=0, faults=0):
         inputs = [clients, shards]
         assert all(isinstance(x, list) for x in inputs)
         assert all(isinstance(x, str) for y in inputs for x in y)
         assert all(x for x in inputs)
+        assert isinstance(idp, str)
 
         self.faults = faults
         if isinstance(faults, int) and isinstance(num_nodes, int):
@@ -51,6 +52,9 @@ class LogParser:
         self.commits = self._keep_earliest_validity(
             [x.items() for x in commits]
         )
+
+        # Parse the idp log.
+        self.confirmations = self._parse_idp(idp)
 
         # Determine whether the shards are collocated.
         self.collocate = num_nodes >= len(set(shards_ips))
@@ -121,6 +125,16 @@ class LogParser:
 
         return ip, certificates
 
+    def _parse_idp(self, log):
+        if search(r'(?:panic|Error)', log) is not None:
+            raise ParseError('IdP panicked')
+
+        tmp = findall(r'\[(.*Z) .* Commit C(\d+)', log)
+        tmp = [(int(d), self._to_posix(t)) for t, d in tmp]
+        certificates = self._keep_earliest([tmp])  # Unnecessary
+
+        return certificates
+
     def _to_posix(self, string):
         x = datetime.fromisoformat(string.replace('Z', '+00:00'))
         return datetime.timestamp(x)
@@ -139,6 +153,24 @@ class LogParser:
         for id, start in self.sent_samples.items():
             if id in self.certificates:
                 end = self.certificates[id]
+                assert end >= start
+                latency += [end-start]
+        return mean(latency) if latency else 0
+
+    def _idp_throughput(self):
+        if not self.confirmations:
+            return 0, 0
+        start, end = min(self.start), max(self.confirmations.values())
+        duration = end - start
+        txs = len(self.commits)
+        tps = txs / duration
+        return tps, duration
+
+    def _idp_latency(self):
+        latency = []
+        for id, start in self.sent_samples.items():
+            if id in self.confirmations:
+                end = self.confirmations[id]
                 assert end >= start
                 latency += [end-start]
         return mean(latency) if latency else 0
@@ -164,6 +196,8 @@ class LogParser:
     def result(self):
         client_latency = self._client_latency() * 1000
         client_tps, _ = self._client_throughput()
+        idp_tps, duration = self._idp_throughput()
+        idp_latency = self._idp_latency() * 1000
         end_to_end_tps, duration = self._end_to_end_throughput()
         end_to_end_latency = self._end_to_end_latency() * 1000
 
@@ -183,6 +217,8 @@ class LogParser:
             ' + RESULTS:\n'
             f' Client TPS: {round(client_tps):,} tx/s\n'
             f' Client latency: {round(client_latency):,} ms\n'
+            f' IdP TPS: {round(idp_tps):,} tx/s\n'
+            f' IdP latency: {round(idp_latency):,} ms\n'
             f' End-to-end TPS: {round(end_to_end_tps):,} tx/s\n'
             f' End-to-end latency: {round(end_to_end_latency):,} ms\n'
             '-----------------------------------------\n'
@@ -201,10 +237,15 @@ class LogParser:
         for filename in sorted(glob(join(directory, 'client-*.log'))):
             with open(filename, 'r') as f:
                 clients += [f.read()]
+
         shards = []
         for filename in sorted(glob(join(directory, 'shard-*.log'))):
             with open(filename, 'r') as f:
                 shards += [f.read()]
 
+        filename = join(directory, 'idp.log')
+        with open(filename, 'r') as f:
+            idp = f.read()
+
         num_nodes = len(glob(join(directory, 'shard-*-0.log')))
-        return cls(clients, shards, num_nodes, faults)
+        return cls(clients, shards, idp, num_nodes, faults)
