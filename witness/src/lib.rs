@@ -75,8 +75,8 @@ pub fn spawn_witness(
     NetworkReceiver::spawn(address, handler);
 
     info!("Witness {} successfully booted on {}", name, address.ip());
-    #[cfg(features = "benchmark")]
-    log::warn!("Witness booted in benchmark mode (safety/consistency is not guaranteed)");
+    #[cfg(features = "witness-only-benchmark")]
+    log::warn!("Witness booted in witness-benchmark mode (safety/consistency is not guaranteed)");
 }
 
 /// Defines how the network receiver handles incoming messages.

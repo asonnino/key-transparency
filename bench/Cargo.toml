@@ -27,13 +27,15 @@ branch = "main"
 
 [features]
 benchmark = []
+micro-benchmark = []
+witness-only-benchmark = []
 
 [[bin]]         
 name = "micro_benchmark"   
 path = "src/micro_benchmark.rs" 
-required-features = ["benchmark"]
+required-features = ["micro-benchmark"]
 
 [[bin]]         
 name = "witness_client"   
 path = "src/witness_client.rs" 
-required-features = ["benchmark"]
+required-features = ["witness-only-benchmark"]

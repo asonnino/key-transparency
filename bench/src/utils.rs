@@ -9,8 +9,17 @@ use crypto::KeyPair;
 use messages::publish::{Proof, PublishCertificate, PublishNotification, PublishVote};
 use messages::{Blake3, IdPToWitnessMessage, Root};
 
-/// Create a publish proof from a tree with the specified number of key-value pairs.
-pub async fn custom_size_proof(entries: usize) -> (Root, Root, Proof) {
+/// Create a publish proof from a tree with the specified number of key-value pairs and an in-memory storage.
+pub async fn proof(entries: usize) -> (Root, Root, Proof) {
+    let db = AsyncInMemoryDatabase::new();
+    proof_with_storage(entries, db).await
+}
+
+/// Create a publish proof from a tree with the specified number of key-value pairs and storage.
+pub async fn proof_with_storage<AkdStorage>(entries: usize, db: AkdStorage) -> (Root, Root, Proof)
+where
+    AkdStorage: akd::storage::Storage + Sync + Send + 'static,
+{
     // Create the list of 64-bytes key-value pairs (in memory).
     let items: Vec<_> = (0..entries)
         .map(|i| {
@@ -21,7 +30,6 @@ pub async fn custom_size_proof(entries: usize) -> (Root, Root, Proof) {
         .collect();
 
     // Create a test tree with the specified number of key-values.
-    let db = AsyncInMemoryDatabase::new();
     let mut akd = Directory::<_>::new::<Blake3>(&db).await.unwrap();
     akd.publish::<Blake3>(items, false).await.unwrap();
 
@@ -53,7 +61,7 @@ pub struct NotificationGenerator<'a> {
 
 impl<'a> NotificationGenerator<'a> {
     pub async fn new(keypair: &'a KeyPair, proof_entries: usize) -> NotificationGenerator<'a> {
-        let (_, root, proof) = custom_size_proof(proof_entries).await;
+        let (_, root, proof) = proof(proof_entries).await;
         Self {
             keypair,
             root,

@@ -30,4 +30,4 @@ git = "https://github.com/asonnino/akd"
 branch = "main"
 
 [features]
-benchmark = []
+witness-only-benchmark = []

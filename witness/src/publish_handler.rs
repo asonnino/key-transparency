@@ -163,18 +163,14 @@ impl PublishHandler {
                         },
                         Ok(()) => {
                             if self.state.sequence_number == certificate.sequence_number() {
-                                #[cfg(not(feature = "benchmark"))]
-                                info!("Processing {:?}", certificate);
-
                                 // Update the witness state.
-                                #[cfg(not(feature = "benchmark"))]
+                                #[cfg(not(feature = "witness-only-benchmark "))]
                                 {
                                     // Do not update the state root when running benchmarks. This allows the
                                     // benchmark client to re-use the same proof (and thus not becoming the
                                     // CPU bottleneck).
                                     self.state.root = *certificate.root();
                                 }
-
                                 self.state.sequence_number += 1;
                                 self.state.lock = None;
 
@@ -183,9 +179,8 @@ impl PublishHandler {
                                 self.storage.write(&STORE_STATE_ADDR, &serialized_state)
                                     .expect("Failed to persist state");
 
-                                #[cfg(feature = "benchmark")]
                                 // NOTE: These log entries are used to compute performance.
-                                info!("Processed certificate {}", certificate.sequence_number());
+                                info!("Processed {:?}", certificate);
 
                                 // Send the serialized certificate to the sync helper.
                                 self

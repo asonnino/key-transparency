@@ -8,7 +8,7 @@ use messages::Root;
 use statistical::{mean, standard_deviation};
 use std::time::Instant;
 use test_utils::{certificate, committee, keys, notification, votes};
-use utils::custom_size_proof;
+use utils::{proof, proof_with_storage};
 
 /// The number of runs used to compute statistics.
 const RUNS: usize = 10;
@@ -17,15 +17,20 @@ const RUNS: usize = 10;
 const PRECISION: usize = 100;
 
 /// The number of key-values pair in the state tree.
-const TREE_ENTRIES: usize = 10_000;
+const DEFAULT_TREE_ENTRIES: usize = 1_000;
 
 /// Run micro-benchmarks for every CPU-intensive operation.
 fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    let tree_entries = match args.len() {
+        x if x > 1 => args[1].parse().unwrap_or(DEFAULT_TREE_ENTRIES),
+        _ => DEFAULT_TREE_ENTRIES,
+    };
     println!("Starting micro-benchmarks:");
 
     // Run all micro-benchmarks.
-    create_notification();
-    verify_notification();
+    create_notification(tree_entries);
+    verify_notification(tree_entries);
     create_vote();
     verify_vote();
     aggregate_certificate();
@@ -56,7 +61,7 @@ where
 
     // Display the results to stdout.
     println!(
-        "  {:>7.2} +/- {:>5.2} ms .......... {}",
+        "  {:>7.2} +/- {:<5.2} ms {:.>30}",
         mean(&data),
         standard_deviation(&data, None),
         id
@@ -64,7 +69,7 @@ where
 }
 
 /// Benchmark the creation of a publish notification.
-fn create_notification() {
+fn create_notification(tree_entries: usize) {
     struct Data(KeyPair);
 
     let setup = || {
@@ -74,7 +79,11 @@ fn create_notification() {
 
     let run = |data: &Data| {
         let Data(keypair) = data;
-        let (_, root, proof) = block_on(custom_size_proof(TREE_ENTRIES));
+
+        // TODO: Use a persistent storage rather than the in-memory storage below.
+        let db = akd::storage::memory::AsyncInMemoryDatabase::new();
+
+        let (_, root, proof) = block_on(proof_with_storage(tree_entries, db));
         PublishNotification::new(root, proof, 1, keypair)
     };
 
@@ -82,12 +91,12 @@ fn create_notification() {
 }
 
 /// Benchmark the verification of a publish notification.
-fn verify_notification() {
+fn verify_notification(tree_entries: usize) {
     struct Data(PublishNotification, Committee, Root);
 
     let setup = || {
         let (_, keypair) = keys().pop().unwrap();
-        let (_, root, proof) = block_on(custom_size_proof(TREE_ENTRIES));
+        let (_, root, proof) = block_on(proof(tree_entries));
         let notification = PublishNotification::new(root, proof, 1, &keypair);
         Data(notification, committee(0), Root::default())
     };
