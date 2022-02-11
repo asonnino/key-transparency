@@ -2,7 +2,8 @@ use function_name::named;
 use futures::future::try_join_all;
 use network::reliable_sender::ReliableSender;
 use test_utils::{
-    certificate, committee, keys, listener, notification, proof, serialized_updates, spawn_test_idp,
+    certificate, committee, delete_storage, keys, listener, notification, proof,
+    serialized_updates, spawn_test_idp,
 };
 
 #[tokio::test]
