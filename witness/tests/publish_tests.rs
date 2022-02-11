@@ -9,7 +9,7 @@ use messages::sync::State;
 use messages::{Blake3, WitnessToIdPMessage};
 use test_utils::{
     broadcast_certificate, broadcast_notification, certificate, committee, delete_storage, keys,
-    notification, proof, spawn_witnesses, votes,
+    notification, proof, spawn_test_witnesses, votes,
 };
 
 #[tokio::test]
@@ -20,7 +20,7 @@ async fn correct_notification() {
     let test_id = function_name!();
 
     // Spawn 4 witnesses.
-    spawn_witnesses(&test_id, &committee);
+    spawn_test_witnesses(&test_id, &committee);
     tokio::task::yield_now().await;
 
     // Broadcast a publish notification.
@@ -56,7 +56,7 @@ async fn unexpected_sequence_number() {
     let test_id = function_name!();
 
     // Spawn 4 witnesses.
-    spawn_witnesses(&test_id, &committee);
+    spawn_test_witnesses(&test_id, &committee);
     tokio::task::yield_now().await;
 
     // Make a publish notification with a bad sequence number.
@@ -99,7 +99,7 @@ async fn conflicting_notification() {
     let test_id = function_name!();
 
     // Spawn 4 witnesses.
-    spawn_witnesses(&test_id, &committee);
+    spawn_test_witnesses(&test_id, &committee);
     tokio::task::yield_now().await;
 
     // Broadcast a first notification.
@@ -163,7 +163,7 @@ async fn expected_certificate() {
     let test_id = function_name!();
 
     // Spawn 4 witnesses.
-    spawn_witnesses(&test_id, &committee);
+    spawn_test_witnesses(&test_id, &committee);
     tokio::task::yield_now().await;
 
     // Broadcast a certificate.
@@ -198,7 +198,7 @@ async fn unexpected_certificate() {
     let test_id = function_name!();
 
     // Spawn 4 witnesses.
-    spawn_witnesses(&test_id, &committee);
+    spawn_test_witnesses(&test_id, &committee);
     tokio::task::yield_now().await;
 
     // Make a publish certificate for a future sequence number.

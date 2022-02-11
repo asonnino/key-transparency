@@ -2,10 +2,10 @@ use crate::error::{MessageError, MessageResult};
 use akd::storage::types::{AkdLabel, AkdValue};
 
 /// A client request in a format understandable by `akd`.
-pub type Request = (AkdLabel, AkdValue);
+pub type UpdateRequest = (AkdLabel, AkdValue);
 
 /// Deserialize client requests into a format understandable by `akd`.
-pub fn deserialize_request(bytes: &[u8]) -> MessageResult<Request> {
+pub fn deserialize_request(bytes: &[u8]) -> MessageResult<UpdateRequest> {
     if bytes.len() < 2 {
         return Err(MessageError::UpdateRequestTooShort);
     }
@@ -16,4 +16,4 @@ pub fn deserialize_request(bytes: &[u8]) -> MessageResult<Request> {
 }
 
 /// A batch of requests.
-pub type Batch = Vec<Request>;
+pub type Batch = Vec<UpdateRequest>;

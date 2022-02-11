@@ -4,13 +4,20 @@ use akd::storage::types::{AkdLabel, AkdValue};
 use bytes::Bytes;
 use config::{Committee, Idp, Witness};
 use crypto::{KeyPair, PublicKey};
+use futures::stream::StreamExt;
+use futures::SinkExt;
+use idp::spawn_idp;
 use messages::publish::{Proof, PublishCertificate, PublishNotification, PublishVote};
 use messages::IdPToWitnessMessage;
 use messages::{Blake3, Root};
 use network::reliable_sender::{CancelHandler, ReliableSender};
 use rand::rngs::StdRng;
 use rand::SeedableRng;
+use std::net::SocketAddr;
 use storage::Storage;
+use tokio::net::TcpListener;
+use tokio::task::JoinHandle;
+use tokio_util::codec::{Framed, LengthDelimitedCodec};
 use witness::spawn_witness;
 
 // Test cryptographic keys.
@@ -115,8 +122,13 @@ pub async fn certificate() -> PublishCertificate {
     }
 }
 
+// A test update request.
+pub fn serialized_update() -> Bytes {
+    Bytes::from([0u8; 64].as_slice())
+}
+
 // Spawn test witnesses.
-pub fn spawn_witnesses(test_id: &str, committee: &Committee) {
+pub fn spawn_test_witnesses(test_id: &str, committee: &Committee) {
     delete_storage(test_id);
     for (i, (_, keypair)) in keys().into_iter().enumerate() {
         let secure_storage_path = format!(".test_secure_storage_{}_{}", test_id, i);
@@ -127,6 +139,33 @@ pub fn spawn_witnesses(test_id: &str, committee: &Committee) {
 
         spawn_witness(keypair, committee.clone(), secure_storage, audit_storage);
     }
+}
+
+// Spawn test idp.
+pub fn spawn_test_idp(test_id: &str, committee: Committee) {
+    delete_storage(test_id);
+    let (_, keypair) = keys().pop().unwrap();
+
+    let secure_storage_path = format!(".test_idp_secure_storage_{}", test_id);
+    let secure_storage = Storage::new(&secure_storage_path).unwrap();
+
+    let sync_storage_path = format!(".test_sync_storage_{}", test_id);
+    let sync_storage = Storage::new(&sync_storage_path).unwrap();
+
+    let batch_size = 2;
+    let max_batch_delay = 200;
+
+    tokio::spawn(async move {
+        spawn_idp(
+            keypair,
+            committee.clone(),
+            secure_storage,
+            sync_storage,
+            batch_size,
+            max_batch_delay,
+        )
+        .await;
+    });
 }
 
 // Helper function deleting a test storage.
@@ -171,4 +210,38 @@ pub async fn broadcast_certificate(
     let bytes = Bytes::from(serialized);
     let mut sender = ReliableSender::new();
     sender.broadcast(addresses, bytes).await
+}
+
+// A test network listener emulating a witness. It replies to a publish notification
+// with a vote and then listen to a publish certificate.
+pub fn listener(
+    address: SocketAddr,
+    keypair: KeyPair,
+) -> JoinHandle<(PublishNotification, PublishCertificate)> {
+    tokio::spawn(async move {
+        let listener = TcpListener::bind(&address).await.unwrap();
+        let (socket, _) = listener.accept().await.unwrap();
+        let mut transport = Framed::new(socket, LengthDelimitedCodec::new());
+
+        // Wait for a publish notification and reply with a vote.
+        let notification = match transport.next().await {
+            Some(Ok(bytes)) => {
+                let notification = bincode::deserialize(&bytes).unwrap();
+                let vote = PublishVote::new(&notification, &keypair);
+                let serialized = bincode::serialize(&vote).unwrap();
+                transport.send(Bytes::from(serialized)).await.unwrap();
+                notification
+            }
+            _ => panic!("Failed to receive network message"),
+        };
+
+        // Wait for a publish certificate.
+        let certificate = match transport.next().await {
+            Some(Ok(bytes)) => bincode::deserialize(&bytes).unwrap(),
+            _ => panic!("Failed to receive network message"),
+        };
+
+        // Output both the notification and certificate.
+        (notification, certificate)
+    })
 }

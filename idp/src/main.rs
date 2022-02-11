@@ -5,7 +5,7 @@ use idp::spawn_idp;
 use storage::Storage;
 
 /// The default maximum delay before sealing a batch (in ms).
-const DEFAULT_MAX_BATCH_DELAY: u64 = 200;
+const DEFAULT_MAX_BATCH_DELAY: u64 = 1_000;
 
 #[tokio::main]
 async fn main() -> Result<()> {

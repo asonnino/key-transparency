@@ -27,3 +27,4 @@ branch = "main"
 
 [dev-dependencies]
 test_utils = { path = "../test_utils" }
+function_name = "0.2.0"
