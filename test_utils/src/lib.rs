@@ -157,6 +157,7 @@ pub fn spawn_test_idp(test_id: &str, committee: Committee) {
             committee.clone(),
             secure_storage,
             sync_storage,
+            /* akd_storage */ AsyncInMemoryDatabase::new(),
             batch_size,
             max_batch_delay,
         )

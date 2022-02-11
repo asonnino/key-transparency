@@ -1,6 +1,5 @@
 use crate::STORE_LAST_NOTIFICATION_ADDR;
 use akd::directory::Directory;
-use akd::storage::memory::AsyncInMemoryDatabase;
 use crypto::KeyPair;
 use futures::executor::block_on;
 use messages::publish::{Proof, PublishNotification};
@@ -11,7 +10,7 @@ use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::task::JoinHandle;
 
 /// Create publish notifications from client requests.
-pub struct Prover {
+pub struct Prover<AkdStorage> {
     /// The private key material of the IdP.
     keypair: KeyPair,
     /// Receive batches of clients' requests.
@@ -21,14 +20,18 @@ pub struct Prover {
     /// The sequence number of the last notification created by the IdP.
     sequence_number: SequenceNumber,
     /// The `akd` key directory.
-    akd: Directory<AsyncInMemoryDatabase>,
+    akd: Directory<AkdStorage>,
 }
 
-impl Prover {
+impl<AkdStorage> Prover<AkdStorage>
+where
+    AkdStorage: akd::storage::Storage + Sync + Send + 'static,
+{
     /// Spawn a new `Prover`.
     pub fn spawn(
         keypair: KeyPair,
         secure_storage: &Storage,
+        akd_storage: AkdStorage,
         rx_batch: Receiver<Batch>,
         tx_notification: Sender<PublishNotification>,
     ) -> JoinHandle<()> {
@@ -37,9 +40,8 @@ impl Prover {
 
         // Run the prover in a new task.
         tokio::spawn(async move {
-            // Make or load the akd.
-            // TODO: Use a persistent storage for the db rather than `AsyncInMemoryDatabase`.
-            let db = AsyncInMemoryDatabase::new();
+            // Make or load the akd directory.
+            let db = akd_storage;
             let akd = Directory::<_>::new::<Blake3>(&db)
                 .await
                 .expect("Failed to create akd");

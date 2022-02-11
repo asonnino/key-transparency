@@ -27,7 +27,7 @@ pub(crate) const STORE_LAST_NOTIFICATION_ADDR: [u8; 32] = [255; 32];
 pub(crate) const DEFAULT_CHANNEL_SIZE: usize = 1_000;
 
 /// Spawn a new IdP.
-pub async fn spawn_idp(
+pub async fn spawn_idp<AkdStorage>(
     // The keypair of the IdP.
     keypair: KeyPair,
     // The committee information.
@@ -36,11 +36,15 @@ pub async fn spawn_idp(
     secure_storage: Storage,
     // The storage containing all past certificates.
     sync_storage: Storage,
+    // The big storage containing all key-values.
+    akd_storage: AkdStorage,
     // The number of updates to batch into a single proof.
     batch_size: usize,
     // The maximum delay before sealing a batch of requests.
     max_batch_delay: u64,
-) {
+) where
+    AkdStorage: akd::storage::Storage + Sync + Send + 'static,
+{
     let (tx_request, rx_request) = channel(DEFAULT_CHANNEL_SIZE);
     let (tx_batch, rx_batch) = channel(DEFAULT_CHANNEL_SIZE);
     let (tx_notification, rx_notification) = channel(DEFAULT_CHANNEL_SIZE);
@@ -51,7 +55,13 @@ pub async fn spawn_idp(
     let batcher_handle = Batcher::spawn(batch_size, max_batch_delay, rx_request, tx_batch);
 
     // The `Prover` persists batches of updates and generate a commit (audit) proof.
-    let prover_handle = Prover::spawn(keypair, &secure_storage, rx_batch, tx_notification);
+    let prover_handle = Prover::spawn(
+        keypair,
+        &secure_storage,
+        akd_storage,
+        rx_batch,
+        tx_notification,
+    );
 
     // The `Publisher` broadcasts publish notifications to the witnesses.
     let publisher_handle = Publisher::spawn(

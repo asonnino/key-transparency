@@ -67,12 +67,17 @@ async fn main() -> Result<()> {
         None => DEFAULT_MAX_BATCH_DELAY,
     };
 
+    // Make the big storage containing all key-values.
+    // TODO: Use a persistent storage for the db rather than `AsyncInMemoryDatabase`.
+    let akd_storage = akd::storage::memory::AsyncInMemoryDatabase::new();
+
     // Spawn the IdP.
     spawn_idp(
         /* keypair */ private_config.secret,
         committee,
         secure_storage,
         sync_storage,
+        akd_storage,
         batch_size,
         max_batch_delay,
     )
