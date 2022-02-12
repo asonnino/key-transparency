@@ -15,7 +15,7 @@ def local(ctx, debug=True):
         'faults': 0,
         'nodes': 4,
         'proof_entries': 100,
-        'rate': 100,
+        'rate': 1000,
         'duration': 20,
         'witness-only': False
     }

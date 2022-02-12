@@ -54,7 +54,10 @@ class LogParser:
         )
 
         # Parse the idp log.
-        self.confirmations = self._parse_idp(idp)
+        self.batch_size = 1  # In case of witness-only benchmark.
+        self.too_slow = 0  # In case of witness-only benchmark.
+        self.batch_size, self.confirmations, self.too_slow = \
+            self._parse_idp(idp)
 
         # Determine whether the shards are collocated.
         self.collocate = num_nodes >= len(set(shards_ips))
@@ -63,6 +66,13 @@ class LogParser:
         if self.misses != 0:
             Print.warn(
                 f'Clients missed their target rate {self.misses:,} time(s)'
+            )
+
+         # Check whether clients missed their target rate.
+        if self.too_slow != 0:
+            Print.warn(
+                f'Clients rate too slow ({self.too_slow:,}x), '
+                'tps is overestimated'
             )
 
     def _keep_earliest(self, input):
@@ -129,11 +139,15 @@ class LogParser:
         if search(r'(?:panic|Error)', log) is not None:
             raise ParseError('IdP panicked')
 
+        batch_size = int(search(r'batch size set to (\d+)', log).group(1))
+
         tmp = findall(r'\[(.*Z) .* Commit C(\d+)', log)
         tmp = [(int(d), self._to_posix(t)) for t, d in tmp]
         certificates = self._keep_earliest([tmp])  # Unnecessary
 
-        return certificates
+        too_slow = len(findall(r'sealing batch early', log))
+
+        return batch_size, certificates, too_slow
 
     def _to_posix(self, string):
         x = datetime.fromisoformat(string.replace('Z', '+00:00'))
@@ -145,7 +159,7 @@ class LogParser:
         start, end = min(self.start), max(self.certificates.values())
         duration = end - start
         txs = len(self.certificates)
-        tps = txs / duration
+        tps = txs * self.batch_size / duration
         return tps, duration
 
     def _client_latency(self):
@@ -163,7 +177,7 @@ class LogParser:
         start, end = min(self.start), max(self.confirmations.values())
         duration = end - start
         txs = len(self.commits)
-        tps = txs / duration
+        tps = txs * self.batch_size / duration
         return tps, duration
 
     def _idp_latency(self):
@@ -173,6 +187,7 @@ class LogParser:
                 end = self.confirmations[id]
                 assert end >= start
                 latency += [end-start]
+
         return mean(latency) if latency else 0
 
     def _end_to_end_throughput(self):
@@ -181,7 +196,7 @@ class LogParser:
         start, end = min(self.start), max(self.commits.values())
         duration = end - start
         txs = len(self.commits)
-        tps = txs / duration
+        tps = txs * self.batch_size / duration
         return tps, duration
 
     def _end_to_end_latency(self):
