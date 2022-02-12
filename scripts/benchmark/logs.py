@@ -1,4 +1,3 @@
-# Copyright(C) Facebook, Inc. and its affiliates.
 from collections import defaultdict
 from datetime import datetime
 from glob import glob

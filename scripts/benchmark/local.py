@@ -1,4 +1,3 @@
-# Copyright(C) Facebook, Inc. and its affiliates.
 import subprocess
 from math import ceil
 from os.path import basename, splitext
