@@ -78,12 +78,17 @@ pub async fn spawn_idp<AkdStorage>(
 
     // Spawn a network receiver.
     let name = committee.idp.name;
-    let address = committee.idp.address;
+    let mut address = committee.idp.address;
+    address.set_ip("0.0.0.0".parse().unwrap());
     let handler = IdpHandler { tx_request };
     NetworkReceiver::spawn(address, handler);
 
     // Prevent the function from returning.
-    info!("Idp {} successfully booted on {}", name, address.ip());
+    info!(
+        "Idp {} successfully booted on {}",
+        name,
+        committee.idp.address.ip()
+    );
     join_all(vec![
         batcher_handle,
         prover_handle,

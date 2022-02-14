@@ -11,7 +11,7 @@
         "branch": "main"
     },
     "instances": {
-        "type": "m5d.8xlarge",
+        "type": "t3.medium",
         "regions": [
             "us-east-1",
             "eu-central-1",

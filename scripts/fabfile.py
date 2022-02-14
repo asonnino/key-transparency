@@ -86,11 +86,11 @@ def remote(ctx, debug=False):
     bench_params = {
         'faults': 0,
         'nodes': [4],
-        'proof_entries': 10_000,
+        'proof_entries': 1_000,
         'shards': 4,
-        'collocate': False,
-        'rate': [20],
-        'duration': 300,
+        'collocate': True,
+        'rate': [100],
+        'duration': 30,
         'runs': 1,
     }
     try:

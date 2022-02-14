@@ -63,9 +63,10 @@ pub fn spawn_witness(
     );
 
     // Spawn a network receiver.
-    let address = committee
+    let mut address = committee
         .witness_address(&name)
         .expect("Our public key is not in the committee");
+    address.set_ip("0.0.0.0".parse().unwrap());
     let handler = WitnessHandler {
         tx_notification,
         tx_certificate,
@@ -74,7 +75,14 @@ pub fn spawn_witness(
     };
     NetworkReceiver::spawn(address, handler);
 
-    info!("Witness {} successfully booted on {}", name, address.ip());
+    info!(
+        "Witness {} successfully booted on {}",
+        name,
+        committee
+            .witness_address(&name)
+            .expect("Our public key is not in the committee")
+            .ip()
+    );
     #[cfg(features = "witness-only-benchmark")]
     log::warn!("Witness booted in witness-benchmark mode (safety/consistency is not guaranteed)");
 }

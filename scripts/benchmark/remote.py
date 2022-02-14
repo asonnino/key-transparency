@@ -93,72 +93,18 @@ class Bench:
         except GroupException as e:
             raise BenchError('Failed to kill nodes', FabricError(e))
 
-    def _rate_share(self, committee, nodes, shards, rate, node_idx, shard_idx):
-        if rate < 80:
-            if node_idx == 0:
-                r = rate % shards
-                share = int(rate / shards)
-                if shard_idx < r:
-                    return share + 1
-                else:
-                    return share
-            else:
-                return 0
-
-        # Handle the common case.
-        if rate >= nodes * shards:
-            return ceil(rate / committee.total_shards())
-
-        # Handle small transaction rates.
-        if rate <= shards:
-            if node_idx == 0 and shard_idx < rate:
-                return 1
-        else:
-            if node_idx == 0:
-                r = rate % shards
-                share = int(rate / shards)
-                if shard_idx < r:
-                    return share + 1
-                else:
-                    return share
-
-        print("it is a zero")
-        return 0
-
     def _select_hosts(self, bench_parameters):
-        # Collocate all shards on the same machine.
-        if bench_parameters.collocate:
-            nodes = max(bench_parameters.nodes)
+        nodes = max(bench_parameters.nodes)
 
-            # Ensure there are enough hosts.
-            hosts = self.manager.hosts()
-            if sum(len(x) for x in hosts.values()) < nodes:
-                return []
+        # Ensure there are enough hosts.
+        hosts = self.manager.hosts()
+        if sum(len(x) for x in hosts.values()) < nodes + 1:
+            return []
 
-            # Select the hosts in different data centers.
-            ordered = zip(*hosts.values())
-            ordered = [x for y in ordered for x in y]
-            return ordered[:nodes]
-
-        # Spawn each shard on a different machine. Each authority runs in
-        # a single data center.
-        else:
-            nodes = max(bench_parameters.nodes)
-
-            # Ensure there are enough hosts.
-            hosts = self.manager.hosts()
-            if len(hosts.keys()) < nodes:
-                return []
-            for ips in hosts.values():
-                if len(ips) < bench_parameters.shards:
-                    return []
-
-            # Ensure the shards of a single authority are in the same region.
-            selected = []
-            for region in list(hosts.keys())[:nodes]:
-                ips = list(hosts[region])[:bench_parameters.shards]
-                selected.append(ips)
-            return selected
+        # Select the hosts in different data centers.
+        ordered = zip(*hosts.values())
+        ordered = [x for y in ordered for x in y]
+        return ordered[:nodes+1]
 
     def _background_run(self, host, command, log_file):
         name = splitext(basename(log_file))[0]
@@ -167,8 +113,9 @@ class Bench:
         output = c.run(cmd, hide=True)
         self._check_stderr(output)
 
-    def _update(self, hosts, collocate):
-        if collocate:
+    def _update(self, hosts, bench_parameters):
+        witness_only = bench_parameters.witness_only
+        if bench_parameters.collocate:
             ips = list(set(hosts))
         else:
             ips = list(set([x for y in hosts for x in y]))
@@ -181,9 +128,9 @@ class Bench:
             f'(cd {self.settings.repo_name} && git checkout -f {self.settings.branch})',
             f'(cd {self.settings.repo_name} && git pull -f)',
             'source $HOME/.cargo/env',
-            f'(cd {self.settings.repo_name} && {CommandMaker.compile()})',
+            f'(cd {self.settings.repo_name} && {CommandMaker.compile(witness_only)})',
             CommandMaker.alias_binaries(
-                f'./{self.settings.repo_name}/target/release/'
+                f'./{self.settings.repo_name}/target/release/', witness_only
             )
         ]
         g = Group(*ips, user='ubuntu', connect_kwargs=self.connect)
@@ -191,40 +138,41 @@ class Bench:
 
     def _config(self, hosts, bench_parameters):
         Print.info('Generating configuration files...')
+        witness_only = bench_parameters.witness_only
 
         # Cleanup all local configuration files.
         cmd = CommandMaker.cleanup()
         subprocess.run([cmd], shell=True, stderr=subprocess.DEVNULL)
 
         # Recompile the latest code.
-        cmd = CommandMaker.compile().split()
+        cmd = CommandMaker.compile(witness_only).split()
         subprocess.run(cmd, check=True, cwd=PathMaker.node_crate_path())
 
         # Create alias for the client and nodes binary.
-        cmd = CommandMaker.alias_binaries(PathMaker.binary_path())
+        cmd = CommandMaker.alias_binaries(
+            PathMaker.binary_path(), witness_only
+        )
         subprocess.run([cmd], shell=True)
 
-        # Generate configuration files.
-        key_files = [PathMaker.key_file(i) for i in range(len(hosts))]
-        cmd = CommandMaker.generate_all(
-            key_files,
-            PathMaker.parameters_file(),
-            PathMaker.master_secret_file()
-        )
+        # Generate witnesses' keys.
+        key_files = [PathMaker.key_file(i) for i in range(len(hosts)-1)]
+        for key_file in key_files:
+            cmd = CommandMaker.generate_key(key_file)
+            subprocess.run(cmd.split(), check=True)
+
+        # Generate key file for the IdP.
+        idp_key_file = PathMaker.idp_key_file()
+        cmd = CommandMaker.generate_key(idp_key_file)
         subprocess.run(cmd.split(), check=True)
 
+        # Generate the committee file.
+        idp = Key.from_file(idp_key_file).name
         names = [Key.from_file(x).name for x in key_files]
-
-        if bench_parameters.collocate:
-            shards = bench_parameters.shards
-            addresses = OrderedDict(
-                (x, [y] * shards) for x, y in zip(names, hosts)
-            )
-        else:
-            addresses = OrderedDict(
-                (x, y) for x, y in zip(names, hosts)
-            )
-        committee = Committee(addresses, self.settings.base_port)
+        idp_address = hosts.pop()
+        addresses = OrderedDict((x, y) for x, y in zip(names, hosts))
+        committee = Committee(
+            idp, idp_address, addresses, self.settings.base_port
+        )
         committee.print(PathMaker.committee_file())
 
         # Cleanup all nodes and upload configuration files.
@@ -236,8 +184,12 @@ class Bench:
                 c.run(f'{CommandMaker.cleanup()} || true', hide=True)
                 c.put(PathMaker.committee_file(), '.')
                 c.put(PathMaker.key_file(i), '.')
-                c.put(PathMaker.parameters_file(), '.')
-                c.put(PathMaker.master_secret_file(), '.')
+
+        # Cleanup the IdP and upload configuration files.
+        c = Connection(idp_address, user='ubuntu', connect_kwargs=self.connect)
+        c.run(f'{CommandMaker.cleanup()} || true', hide=True)
+        c.put(PathMaker.committee_file(), '.')
+        c.put(PathMaker.idp_key_file(), '.')
 
         return committee
 
@@ -248,56 +200,50 @@ class Bench:
         hosts = committee.ips()
         self.kill(hosts=hosts, delete_logs=True)
 
-        # Check whether to run coconut or not.
-        if bench_parameters.coconut:
-            parameters = PathMaker.parameters_file()
-            master_secret = PathMaker.master_secret_file()
-        else:
-            parameters = None
-            master_secret = None
-
         # Run the clients (they will wait for the nodes to be ready).
         # Filter all faulty nodes from the client addresses (or they will wait
         # for the faulty nodes to be online).
-        Print.info('Booting clients...')
-        nodes_addresses = committee.addresses(faults)
-        for i, shards in enumerate(nodes_addresses):
-            for j, address in shards:
-                host = Committee.ip(address)
-                rate_share = self._rate_share(
-                    committee,
-                    committee.size(),
-                    bench_parameters.shards,
-                    rate,
-                    i,
-                    j
-                )
-                cmd = CommandMaker.run_client(
-                    [x[j][1] for x in nodes_addresses],
-                    rate_share,
-                    [x for y in nodes_addresses for _, x in y],
-                    PathMaker.committee_file(),
-                    parameters,
-                    master_secret
-                )
-                log_file = PathMaker.client_log_file(i, j)
-                self._background_run(host, cmd, log_file)
+        Print.info('Booting client...')
+        cmd = CommandMaker.run_client(
+            bench_parameters.witness_only,
+            PathMaker.committee_file(),
+            rate,
+            PathMaker.idp_key_file(),
+            bench_parameters.proof_entries,
+            debug
+        )
+        log_file = PathMaker.client_log_file(0, 0)
+        host = Committee.ip(committee.idp_address())
+        self._background_run(host, cmd, log_file)
 
-        # Run the shards (except the faulty ones).
-        Print.info('Booting shards...')
-        for i, shards in enumerate(nodes_addresses):
-            for j, address in shards:
-                host = Committee.ip(address)
-                cmd = CommandMaker.run_shard(
-                    PathMaker.key_file(i),
-                    PathMaker.committee_file(),
-                    parameters,
-                    PathMaker.db_path(i, j),
-                    j,  # The shard's id.
-                    debug=debug
-                )
-                log_file = PathMaker.shard_log_file(i, j)
-                self._background_run(host, cmd, log_file)
+        # Run the IdP.
+        if not bench_parameters.witness_only:
+            cmd = CommandMaker.run_idp(
+                PathMaker.idp_key_file(),
+                PathMaker.committee_file(),
+                PathMaker.idp_secure_db_path(),
+                PathMaker.sync_db_path(),
+                bench_parameters.proof_entries,
+                debug=debug
+            )
+            log_file = PathMaker.idp_log_file()
+            host = Committee.ip(committee.idp_address())
+            self._background_run(host, cmd, log_file)
+
+        # Run the witnesses (except the faulty ones).
+        Print.info('Booting witnesses...')
+        nodes_addresses = committee.addresses(faults)
+        for i, address in enumerate(nodes_addresses):
+            cmd = CommandMaker.run_witness(
+                PathMaker.key_file(i),
+                PathMaker.committee_file(),
+                PathMaker.secure_db_path(i, 0),
+                PathMaker.audit_db_path(i, 0),
+                debug=debug
+            )
+            log_file = PathMaker.shard_log_file(i, 0)
+            host = Committee.ip(address)
+            self._background_run(host, cmd, log_file)
 
         # Wait for all transactions to be processed.
         duration = bench_parameters.duration
@@ -305,30 +251,40 @@ class Bench:
             sleep(ceil(duration / 20))
         self.kill(hosts=hosts, delete_logs=False)
 
-    def _logs(self, committee, faults):
+    def _logs(self, committee, faults, bench_parameters):
         # Delete local logs (if any).
         cmd = CommandMaker.clean_logs()
         subprocess.run([cmd], shell=True, stderr=subprocess.DEVNULL)
 
-        # Download log files.
+        # Download witnesses' log files.
         nodes_addresses = committee.addresses(faults)
         progress = progress_bar(
-            nodes_addresses, prefix='Downloading shards logs:'
+            nodes_addresses, prefix='Downloading witnesses logs:'
         )
-        for i, addresses in enumerate(progress):
-            for j, address in addresses:
-                host = Committee.ip(address)
-                c = Connection(
-                    host, user='ubuntu', connect_kwargs=self.connect
-                )
-                c.get(
-                    PathMaker.client_log_file(i, j),
-                    local=PathMaker.client_log_file(i, j)
-                )
-                c.get(
-                    PathMaker.shard_log_file(i, j),
-                    local=PathMaker.shard_log_file(i, j)
-                )
+        for i, address in enumerate(progress):
+            host = Committee.ip(address)
+            c = Connection(
+                host, user='ubuntu', connect_kwargs=self.connect
+            )
+            c.get(
+                PathMaker.shard_log_file(i, 0),
+                local=PathMaker.shard_log_file(i, 0)
+            )
+
+        # Download client and IdP log files.
+        host = Committee.ip(committee.idp_address())
+        c = Connection(
+            host, user='ubuntu', connect_kwargs=self.connect
+        )
+        c.get(
+            PathMaker.client_log_file(0, 0),
+            local=PathMaker.client_log_file(0, 0)
+        )
+        if not bench_parameters.witness_only:
+            c.get(
+                PathMaker.idp_log_file(),
+                local=PathMaker.idp_log_file()
+            )
 
         # Parse logs and return the parser.
         Print.info('Parsing logs and computing performance...')
@@ -350,7 +306,7 @@ class Bench:
 
         # Update nodes.
         try:
-            self._update(selected_hosts, bench_parameters.collocate)
+            self._update(selected_hosts, bench_parameters)
         except (GroupException, ExecutionError) as e:
             e = FabricError(e) if isinstance(e, GroupException) else e
             raise BenchError('Failed to update nodes', e)
@@ -382,7 +338,9 @@ class Bench:
                         )
 
                         faults = bench_parameters.faults
-                        logger = self._logs(committee, faults)
+                        logger = self._logs(
+                            committee, faults, bench_parameters
+                        )
                         logger.print(PathMaker.result_file(
                             faults,
                             n,

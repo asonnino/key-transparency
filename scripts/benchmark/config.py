@@ -71,6 +71,10 @@ class Committee:
             addresses += [authority['address']]
         return addresses
 
+    def idp_address(self):
+        ''' Returns the network address of the IdP '''
+        return self.json['idp']['address']
+
     def ips(self, name=None):
         ''' Returns all the ips associated with an authority (in any order). '''
         if name is None:
