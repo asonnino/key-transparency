@@ -85,12 +85,10 @@ def remote(ctx, debug=False):
     ''' Run benchmarks on AWS '''
     bench_params = {
         'faults': 0,
-        'nodes': [4],
+        'nodes': [10],
         'proof_entries': 1_000,
-        'shards': 4,
-        'collocate': True,
-        'rate': [100],
-        'duration': 30,
+        'rate': [5_000],
+        'duration': 60,
         'runs': 1,
     }
     try:

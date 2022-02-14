@@ -87,6 +87,7 @@ class Committee:
             address = self.json['witnesses'][name]['address']
             ips.add(self.ip(address))
 
+        ips.add(self.ip(self.idp_address()))
         return list(ips)
 
     def remove_nodes(self, nodes):
@@ -140,6 +141,8 @@ class BenchParameters:
 
             self.proof_entries = int(json['proof_entries'])
 
+            shards = json['shards'] if 'shards' in json else 1
+
             if 'collocate' in json:
                 self.collocate = bool(json['collocate'])
             else:
@@ -178,9 +181,9 @@ class PlotParameters:
 
             self.proof_entries = json['proof_entries']
 
-            shards = json['shards']
+            shards = json['shards'] if 'shards' in json else [1]
             shards = shards if isinstance(shards, list) else [shards]
-            self.shards = [int(x) for x in shards] if shards else [1]
+            self.shards = [int(x) for x in shards]
 
             if 'collocate' in json:
                 self.collocate = bool(json['collocate'])

@@ -272,6 +272,7 @@ class Bench:
             )
 
         # Download client and IdP log files.
+        Print.info('Downloading client log...')
         host = Committee.ip(committee.idp_address())
         c = Connection(
             host, user='ubuntu', connect_kwargs=self.connect
@@ -281,6 +282,7 @@ class Bench:
             local=PathMaker.client_log_file(0, 0)
         )
         if not bench_parameters.witness_only:
+            Print.info('Downloading IdP log...')
             c.get(
                 PathMaker.idp_log_file(),
                 local=PathMaker.idp_log_file()
@@ -346,8 +348,7 @@ class Bench:
                             n,
                             bench_parameters.shards,
                             bench_parameters.collocate,
-                            r,
-                            bench_parameters.coconut
+                            r
                         ))
                     except (subprocess.SubprocessError, GroupException, ParseError) as e:
                         self.kill(hosts=selected_hosts)
