@@ -141,7 +141,7 @@ class BenchParameters:
 
             self.proof_entries = int(json['proof_entries'])
 
-            shards = json['shards'] if 'shards' in json else 1
+            self.shards = json['shards'] if 'shards' in json else 1
 
             if 'collocate' in json:
                 self.collocate = bool(json['collocate'])
