@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use bytes::BytesMut;
-use clap::{arg, crate_name, crate_version, App, AppSettings, Arg};
+use clap::{arg, crate_name, crate_version, Command, Arg};
 use config::{Committee, Import};
 use futures::future::join_all;
 use futures::stream::futures_unordered::FuturesUnordered;
@@ -16,7 +16,7 @@ const DEFAULT_UPDATE_SIZE: usize = 64;
 #[tokio::main]
 async fn main() -> Result<()> {
     // Read the cli parameters.
-    let matches = App::new(crate_name!())
+    let matches = Command::new(crate_name!())
         .version(crate_version!())
         .about("Benchmark client for Key Transparency witnesses.")
         .arg(Arg::new("verbose").multiple_occurrences(true).short('v'))
@@ -25,7 +25,7 @@ async fn main() -> Result<()> {
             arg!(--rate <INT> "The rate (txs/s) at which to send the transactions"),
             arg!(--size [INT] "The size (B) of an update key + value"),
         ])
-        .setting(AppSettings::ArgRequiredElseHelp)
+        .arg_required_else_help(true)
         .get_matches();
 
     // Configure the logger.

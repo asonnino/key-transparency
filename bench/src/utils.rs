@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use akd::directory::Directory;
+use akd::primitives::akd_vrf::HardCodedAkdVRF;
 use akd::storage::memory::AsyncInMemoryDatabase;
 use akd::storage::types::{AkdLabel, AkdValue};
 use bytes::Bytes;
@@ -30,7 +31,8 @@ where
         .collect();
 
     // Create a test tree with the specified number of key-values.
-    let mut akd = Directory::<_>::new::<Blake3>(&db).await.unwrap();
+    let vrf = HardCodedAkdVRF {};
+    let akd = Directory::new::<Blake3>(&db, &vrf, false).await.unwrap();
     akd.publish::<Blake3>(items, false).await.unwrap();
 
     // Compute the start root (at sequence 0) and end root (at sequence 1).

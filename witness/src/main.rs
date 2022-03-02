@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use clap::{arg, crate_name, crate_version, App, AppSettings, Arg, ArgMatches};
+use clap::{arg, crate_name, crate_version, Arg, ArgMatches, Command};
 use config::{Committee, Export, Import, PrivateConfig};
 use storage::Storage;
 use witness::spawn_witness;
@@ -7,22 +7,22 @@ use witness::spawn_witness;
 #[tokio::main]
 async fn main() -> Result<()> {
     // Read the cli parameters.
-    let matches = App::new(crate_name!())
+    let matches = Command::new(crate_name!())
         .version(crate_version!())
         .about("A Key Transparency witnesses.")
         .arg(Arg::new("verbose").multiple_occurrences(true).short('v'))
         .subcommand(
-            App::new("generate")
+            Command::new("generate")
                 .about("Print a fresh key pair to file")
                 .arg(arg!(--filename <FILE> "The path to the witness keypair")),
         )
-        .subcommand(App::new("run").about("Run a witness").args(&[
+        .subcommand(Command::new("run").about("Run a witness").args(&[
             arg!(--committee <FILE> "The path to the committee file"),
             arg!(--keypair <FILE> "The path to the witness keypair"),
             arg!(--secure_storage <FILE> "The directory to hold the secure storage"),
             arg!(--audit_storage <FILE> "The directory to hold the audit storage"),
         ]))
-        .setting(AppSettings::ArgRequiredElseHelp)
+        .arg_required_else_help(true)
         .get_matches();
 
     // Configure the logger.

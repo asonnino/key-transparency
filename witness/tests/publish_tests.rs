@@ -1,4 +1,5 @@
 use akd::directory::Directory;
+use akd::primitives::akd_vrf::HardCodedAkdVRF;
 use akd::storage::memory::AsyncInMemoryDatabase;
 use akd::storage::types::{AkdLabel, AkdValue};
 use function_name::named;
@@ -110,7 +111,8 @@ async fn conflicting_notification() {
 
     // Make a conflicting proof of update.
     let db = AsyncInMemoryDatabase::new();
-    let mut akd = Directory::<_>::new::<Blake3>(&db).await.unwrap();
+    let vrf = HardCodedAkdVRF {};
+    let akd = Directory::new::<Blake3>(&db, &vrf, false).await.unwrap();
     akd.publish::<Blake3>(
         vec![(AkdLabel("X".to_string()), AkdValue("Y".to_string()))],
         false,
@@ -177,6 +179,7 @@ async fn expected_certificate() {
         sequence_number: 2,
         lock: None,
     };
+    println!("{:?}", expected);
 
     // Ensure the witnesses' replies are as expected.
     for reply in try_join_all(handles).await.unwrap() {

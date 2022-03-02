@@ -1,7 +1,7 @@
 mod utils;
 
 use anyhow::{anyhow, Context, Result};
-use clap::{arg, crate_name, crate_version, App, AppSettings, Arg};
+use clap::{arg, crate_name, crate_version, Command,Arg};
 use config::{Committee, Import, PrivateConfig};
 use crypto::KeyPair;
 use futures::future::join_all;
@@ -18,7 +18,7 @@ use utils::{CertificateGenerator, NotificationGenerator};
 #[tokio::main]
 async fn main() -> Result<()> {
     // Read the cli parameters.
-    let matches = App::new(crate_name!())
+    let matches = Command::new(crate_name!())
         .version(crate_version!())
         .about("Benchmark client for Key Transparency witnesses.")
         .arg(Arg::new("verbose").multiple_occurrences(true).short('v'))
@@ -28,7 +28,7 @@ async fn main() -> Result<()> {
             arg!(--rate <INT> "The rate (txs/s) at which to send the transactions"),
             arg!(--proof_entries <INT> "The number of key updates per proof"),
         ])
-        .setting(AppSettings::ArgRequiredElseHelp)
+        .arg_required_else_help(true)
         .get_matches();
 
     // Configure the logger.

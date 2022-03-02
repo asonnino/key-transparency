@@ -7,6 +7,7 @@ use messages::publish::{PublishCertificate, PublishNotification, PublishVote};
 use messages::Root;
 use statistical::{mean, standard_deviation};
 use std::time::Instant;
+use storage::akd_storage::AkdStorage;
 use test_utils::{certificate, committee, keys, notification, votes};
 use utils::{proof, proof_with_storage};
 
@@ -80,9 +81,9 @@ fn create_notification(tree_entries: usize) {
     let run = |data: &Data| {
         let Data(keypair) = data;
 
-        // TODO: Use a persistent storage rather than the in-memory storage below.
-        let db = akd::storage::memory::AsyncInMemoryDatabase::new();
-
+        let akd_storage_path = ".micro_benchmark_adk_storage";
+        let _ = std::fs::remove_dir_all(&akd_storage_path);
+        let db = AkdStorage::new(akd_storage_path);
         let (_, root, proof) = block_on(proof_with_storage(tree_entries, db));
         PublishNotification::new(root, proof, 1, keypair)
     };

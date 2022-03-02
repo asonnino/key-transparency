@@ -1,5 +1,6 @@
 use crate::STORE_LAST_NOTIFICATION_ADDR;
 use akd::directory::Directory;
+use akd::primitives::akd_vrf::HardCodedAkdVRF;
 use crypto::KeyPair;
 use futures::executor::block_on;
 use messages::publish::{Proof, PublishNotification};
@@ -20,7 +21,7 @@ pub struct Prover<AkdStorage> {
     /// The sequence number of the last notification created by the IdP.
     sequence_number: SequenceNumber,
     /// The `akd` key directory.
-    akd: Directory<AkdStorage>,
+    akd: Directory<AkdStorage, HardCodedAkdVRF>,
 }
 
 impl<AkdStorage> Prover<AkdStorage>
@@ -42,7 +43,8 @@ where
         tokio::spawn(async move {
             // Make or load the akd directory.
             let db = akd_storage;
-            let akd = Directory::<_>::new::<Blake3>(&db)
+            let vrf = HardCodedAkdVRF {};
+            let akd = Directory::new::<Blake3>(&db, &vrf, false)
                 .await
                 .expect("Failed to create akd");
 

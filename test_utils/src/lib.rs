@@ -1,4 +1,5 @@
 use akd::directory::Directory;
+use akd::primitives::akd_vrf::HardCodedAkdVRF;
 use akd::storage::memory::AsyncInMemoryDatabase;
 use bytes::Bytes;
 use config::{Committee, Idp, Witness};
@@ -67,7 +68,8 @@ pub async fn proof() -> (Root, Root, Proof) {
 
     // Create a test tree with dumb key-values.
     let db = AsyncInMemoryDatabase::new();
-    let mut akd = Directory::<_>::new::<Blake3>(&db).await.unwrap();
+    let vrf = HardCodedAkdVRF {};
+    let akd = Directory::new::<Blake3>(&db, &vrf, false).await.unwrap();
     akd.publish::<Blake3>(items, false).await.unwrap();
 
     // Compute the start root (at sequence 0) and end root (at sequence 1).

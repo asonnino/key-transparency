@@ -1,6 +1,7 @@
 use crate::publish::{PublishMessage, PublishVote};
 use crate::{deserialize_root, serialize_root, Blake3, Root, SequenceNumber};
 use akd::directory::Directory;
+use akd::primitives::akd_vrf::HardCodedAkdVRF;
 use akd::storage::memory::AsyncInMemoryDatabase;
 use futures::executor::block_on;
 use serde::{Deserialize, Serialize};
@@ -21,7 +22,8 @@ pub struct State {
 impl Default for State {
     fn default() -> Self {
         let db = AsyncInMemoryDatabase::new();
-        let akd = block_on(Directory::<_>::new::<Blake3>(&db))
+        let vrf = HardCodedAkdVRF {};
+        let akd = block_on(Directory::new::<Blake3>(&db, &vrf, false))
             .expect("Failed to create empty tree directory");
         let current_azks = block_on(akd.retrieve_current_azks()).expect("Failed to compute azks");
         let root = block_on(akd.get_root_hash_at_epoch::<Blake3>(&current_azks, 0))

@@ -1,3 +1,5 @@
+pub mod akd_storage;
+
 /// Convenient name for rocksdb's error.
 pub type StoreError = rocksdb::Error;
 type StoreResult<T> = Result<T, StoreError>;
