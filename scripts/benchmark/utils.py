@@ -55,11 +55,15 @@ class PathMaker:
 
     @staticmethod
     def idp_secure_db_path():
-        return f'.idp_secure-db'
+        return f'.idp-secure-db'
 
     @staticmethod
     def sync_db_path():
-        return f'.sync_secure-db'
+        return f'.sync-db'
+
+    @staticmethod
+    def akd_db_path():
+        return f'.akd-db'
 
     @staticmethod
     def logs_path():

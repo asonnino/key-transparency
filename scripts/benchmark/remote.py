@@ -223,6 +223,7 @@ class Bench:
                 PathMaker.committee_file(),
                 PathMaker.idp_secure_db_path(),
                 PathMaker.sync_db_path(),
+                PathMaker.akd_db_path(),
                 bench_parameters.proof_entries,
                 debug=debug
             )

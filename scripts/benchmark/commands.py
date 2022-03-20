@@ -40,18 +40,19 @@ class CommandMaker:
         )
 
     @staticmethod
-    def run_idp(keypair, committee, secure_store, sync_storage, batch_size, debug=False):
+    def run_idp(keypair, committee, secure_store, sync_storage, akd_storage, batch_size, debug=False):
         assert isinstance(keypair, str)
         assert isinstance(committee, str)
         assert isinstance(secure_store, str)
         assert isinstance(sync_storage, str)
+        assert isinstance(akd_storage, str)
         assert isinstance(batch_size, int)
         assert isinstance(debug, bool)
         v = '-vvv' if debug else '-vv'
         return (
             f'./idp {v} --keypair {keypair} --committee {committee} '
             f'--secure_storage {secure_store} --sync_storage {sync_storage} '
-            f'--batch_size {batch_size}'
+            f'--akd_storage {akd_storage} --batch_size {batch_size}'
         )
 
     @staticmethod
