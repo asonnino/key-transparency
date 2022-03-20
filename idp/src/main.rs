@@ -20,7 +20,7 @@ async fn main() -> Result<()> {
             arg!(--committee <FILE> "The path to the committee file"),
             arg!(--secure_storage <FILE> "The directory to hold the secure storage"),
             arg!(--sync_storage <FILE> "The directory to hold the sync storage"),
-            arg!(--akd_storage <FILE> "The directory to hold the big database"),
+            arg!(--akd_storage <FILE> "The directory to hold the big akd database"),
             arg!(--batch_size <INT> "The number of client update requests to batch into a proof"),
             arg!(--max_batch_delay [INT] "The maximum delay (ms) before sealing a batch"),
         ])
