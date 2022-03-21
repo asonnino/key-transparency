@@ -43,7 +43,8 @@ class LogParser:
 
         # Parse the idp log.
         self.batch_size = 1  # In case of witness-only benchmark.
-        self.confirmations, self.requests = self._parse_idp(idp)
+        self.batch_size, self.confirmations, self.requests = \
+            self._parse_idp(idp)
 
         tmp = {}
         for tx_id, batch_id in self.requests.items():
@@ -145,6 +146,8 @@ class LogParser:
         if search(r'(?:panic|Error)', log) is not None:
             raise ParseError('IdP panicked')
 
+        batch_size = int(search(r'batch size set to (\d+)', log).group(1))
+
         tmp = findall(r'\[(.*Z) .* Commit C(\d+)', log)
         tmp = [(int(d), self._to_posix(t)) for t, d in tmp]
         certificates = self._keep_earliest([tmp])  # Unnecessary
@@ -152,7 +155,7 @@ class LogParser:
         tmp = findall(r'Batch (\d+) contains sample tx (\d+)', log)
         requests = {int(t): int(b) for b, t in tmp}
 
-        return certificates, requests
+        return batch_size, certificates, requests
 
     def _to_posix(self, string):
         x = datetime.fromisoformat(string.replace('Z', '+00:00'))
@@ -232,6 +235,7 @@ class LogParser:
             f' Committee size: {self.committee_size} node(s)\n'
             f' Shard(s) per node: {self.shards} shard(s)\n'
             f' Collocate shards: {self.collocate}\n'
+            f' Batch size: {self.batch_size}\n'
             f' Input rate: {sum(self.rate):,} tx/s\n'
             f' Execution time: {round(duration):,} s\n'
             '\n'
