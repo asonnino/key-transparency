@@ -174,7 +174,7 @@ class LogParser:
         start, end = min(self.start), max(self.certificates.values())
         duration = end - start
         txs = len(self.certificates)
-        tps = txs / duration
+        tps = txs * self.batch_size / duration
         return tps, duration
 
     def _client_latency(self):
@@ -211,7 +211,10 @@ class LogParser:
         start, end = min(self.start), max(self.commits.values())
         duration = end - start
         txs = len(self.commits)
-        tps = txs / duration
+        if self.witness_only_benchmark:
+            tps = txs * self.batch_size / duration
+        else:
+            tps = txs / duration
         return tps, duration
 
     def _end_to_end_latency(self):
