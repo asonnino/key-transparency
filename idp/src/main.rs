@@ -6,7 +6,7 @@ use storage::akd_storage::AkdStorage;
 use storage::Storage;
 
 /// The default maximum delay before sealing a batch (in ms).
-const DEFAULT_MAX_BATCH_DELAY: u64 = 5_000;
+const DEFAULT_MAX_BATCH_DELAY: u64 = 30_000;
 
 #[tokio::main]
 async fn main() -> Result<()> {
