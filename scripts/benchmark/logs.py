@@ -48,7 +48,7 @@ class LogParser:
         except (ValueError, IndexError, AttributeError) as e:
             raise ParseError(f'Failed to parse shards\' logs: {e}')
         shards_ips, commits = zip(*results)
-        self.commits = self._keep_earliest_validity(
+        self.commits = self._keep_earliest_quorum(
             [x.items() for x in commits]
         )
 
@@ -83,12 +83,12 @@ class LogParser:
                     merged[k] = v
         return merged
 
-    def _keep_earliest_validity(self, input):
-        # Keep the earliest f+1 timestamp.
+    def _keep_earliest_quorum(self, input):
+        # Keep the earliest 2f+1 timestamp.
         if isinstance(self.committee_size, int):
-            validity = int((self.committee_size + 2) / 3)
+            quorum = int((2 * self.committee_size / 3) + 1)
         else:
-            validity = 1
+            quorum = 1
 
         merged = defaultdict(list)
         for x in input:
@@ -98,7 +98,7 @@ class LogParser:
         for k, v in merged.items():
             values = v.copy()
             values.sort()
-            merged[k] = max(values[:validity])
+            merged[k] = max(values[:quorum])
 
         return merged
 
