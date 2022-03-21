@@ -29,10 +29,8 @@ impl Batcher {
         rx_request: Receiver<Bytes>,
         tx_batch: Sender<Batch>,
     ) -> JoinHandle<()> {
-        #[cfg(feature = "benchmark")]
-        // NOTE: These log entries are used to compute performance.
         log::info!("batch size set to {}", batch_size);
-
+        
         tokio::spawn(async move {
             Self {
                 batch_size,

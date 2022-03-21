@@ -41,6 +41,19 @@ class LogParser:
         self.sent_samples = {k: v for x in sent_samples for k, v in x.items()}
         self.certificates = {k: v for x in certificates for k, v in x.items()}
 
+        # Parse the idp log.
+        self.batch_size = 1  # In case of witness-only benchmark.
+        self.confirmations, self.requests = self._parse_idp(idp)
+
+        tmp = {}
+        for tx_id, batch_id in self.requests.items():
+            if batch_id in self.confirmations:
+                tmp[tx_id] = self.confirmations[batch_id]
+        self.confirmations = tmp
+
+        # Determine whether this is a witness-only benchmark.
+        self.witness_only_benchmark = len(self.confirmations) == 0
+
         # Parse the shards logs.
         try:
             with Pool() as p:
@@ -52,10 +65,12 @@ class LogParser:
             [x.items() for x in commits]
         )
 
-        # Parse the idp log.
-        self.batch_size = 1  # In case of witness-only benchmark.
-        self.batch_size, self.confirmations, self.requests = \
-            self._parse_idp(idp)
+        if not self.witness_only_benchmark:
+            tmp = {}
+            for tx_id, batch_id in self.requests.items():
+                if batch_id in self.commits:
+                    tmp[tx_id] = self.commits[batch_id]
+            self.commits = tmp
 
         # Determine whether the shards are collocated.
         self.collocate = num_nodes >= len(set(shards_ips))
@@ -130,8 +145,6 @@ class LogParser:
         if search(r'(?:panic|Error)', log) is not None:
             raise ParseError('IdP panicked')
 
-        batch_size = int(search(r'batch size set to (\d+)', log).group(1))
-
         tmp = findall(r'\[(.*Z) .* Commit C(\d+)', log)
         tmp = [(int(d), self._to_posix(t)) for t, d in tmp]
         certificates = self._keep_earliest([tmp])  # Unnecessary
@@ -139,7 +152,7 @@ class LogParser:
         tmp = findall(r'Batch (\d+) contains sample tx (\d+)', log)
         requests = {int(t): int(b) for b, t in tmp}
 
-        return batch_size, certificates, requests
+        return certificates, requests
 
     def _to_posix(self, string):
         x = datetime.fromisoformat(string.replace('Z', '+00:00'))
@@ -151,7 +164,7 @@ class LogParser:
         start, end = min(self.start), max(self.certificates.values())
         duration = end - start
         txs = len(self.certificates)
-        tps = txs * self.batch_size / duration
+        tps = txs / duration
         return tps, duration
 
     def _client_latency(self):
@@ -168,19 +181,17 @@ class LogParser:
             return 0, 0
         start, end = min(self.start), max(self.confirmations.values())
         duration = end - start
-        txs = len(self.commits)
-        tps = txs * self.batch_size / duration
+        txs = len(self.confirmations)
+        tps = txs / duration
         return tps, duration
 
     def _idp_latency(self):
         latency = []
         for id, start in self.sent_samples.items():
-            if id in self.requests:
-                batch = self.requests[id]
-                if batch in self.confirmations:
-                    end = self.confirmations[batch]
-                    assert end >= start
-                    latency += [end-start]
+            if id in self.confirmations:
+                end = self.confirmations[id]
+                assert end >= start
+                latency += [end-start]
 
         return mean(latency) if latency else 0
 
@@ -190,18 +201,17 @@ class LogParser:
         start, end = min(self.start), max(self.commits.values())
         duration = end - start
         txs = len(self.commits)
-        tps = txs * self.batch_size / duration
+        tps = txs / duration
         return tps, duration
 
     def _end_to_end_latency(self):
         latency = []
         for id, start in self.sent_samples.items():
-            if id in self.requests:
-                batch = self.requests[id]
-                if batch in self.commits:
-                    end = self.commits[batch]
-                    assert end >= start
-                    latency += [end-start]
+            if id in self.commits:
+                end = self.commits[id]
+                assert end >= start
+                latency += [end-start]
+
         return mean(latency) if latency else 0
 
     def result(self):
