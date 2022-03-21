@@ -86,8 +86,9 @@ def remote(ctx, debug=False):
     bench_params = {
         'faults': 0,
         'nodes': [10],
-        'proof_entries': 1_000,
-        'rate': [100],
+        'proof_entries': 5_00,
+        'rate': [250],
+        'witness-only': True,
         'duration': 60,
         'runs': 1,
     }

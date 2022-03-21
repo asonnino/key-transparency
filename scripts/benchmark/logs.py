@@ -2,7 +2,7 @@ from collections import defaultdict
 from datetime import datetime
 from glob import glob
 from multiprocessing import Pool
-from os.path import join
+from os.path import join, isfile
 from re import findall, search
 from statistics import mean
 
@@ -29,31 +29,35 @@ class LogParser:
             self.committee_size = '?'
             self.shards = '?'
 
+        # Determine whether this is a witness-only benchmark.
+        self.witness_only_benchmark = not idp
+
         # Parse the clients logs.
         try:
             with Pool() as p:
                 results = p.map(self._parse_clients, clients)
         except (ValueError, IndexError, AttributeError) as e:
             raise ParseError(f'Failed to parse clients\' logs: {e}')
-        self.rate, self.start, misses, sent_samples, certificates = \
+        client_batch_size, self.rate, self.start, misses, sent_samples, certificates = \
             zip(*results)
         self.misses = sum(misses)
         self.sent_samples = {k: v for x in sent_samples for k, v in x.items()}
         self.certificates = {k: v for x in certificates for k, v in x.items()}
 
         # Parse the idp log.
-        self.batch_size = 1  # In case of witness-only benchmark.
-        self.batch_size, self.confirmations, self.requests = \
-            self._parse_idp(idp)
+        if not self.witness_only_benchmark:
+            self.batch_size, self.confirmations, self.requests = \
+                self._parse_idp(idp)
 
-        tmp = {}
-        for tx_id, batch_id in self.requests.items():
-            if batch_id in self.confirmations:
-                tmp[tx_id] = self.confirmations[batch_id]
-        self.confirmations = tmp
-
-        # Determine whether this is a witness-only benchmark.
-        self.witness_only_benchmark = len(self.confirmations) == 0
+            tmp = {}
+            for tx_id, batch_id in self.requests.items():
+                if batch_id in self.confirmations:
+                    tmp[tx_id] = self.confirmations[batch_id]
+            self.confirmations = tmp
+        else:
+            self.batch_size = client_batch_size[0]
+            self.confirmations = {}
+            self.requests = {}
 
         # Parse the shards logs.
         try:
@@ -114,6 +118,9 @@ class LogParser:
         if search(r'Error', log) is not None:
             raise ParseError('Client(s) panicked')
 
+        tmp = search(r'Batch size: (\d+)', log)
+        batch_size = int(tmp.group(1)) if tmp is not None else 0
+
         rate = int(search(r'Transactions rate: (\d+)', log).group(1))
 
         tmp = search(r'\[(.*Z) .* Start ', log).group(1)
@@ -128,7 +135,7 @@ class LogParser:
         tmp = [(int(d), self._to_posix(t)) for t, d in tmp]
         certificates = self._keep_earliest([tmp])  # Unnecessary
 
-        return rate, start, misses, samples, certificates
+        return batch_size, rate, start, misses, samples, certificates
 
     def _parse_shards(self, log):
         if search(r'(?:panic|Error)', log) is not None:
@@ -269,8 +276,11 @@ class LogParser:
                 shards += [f.read()]
 
         filename = join(directory, 'idp.log')
-        with open(filename, 'r') as f:
-            idp = f.read()
+        if isfile(filename):
+            with open(filename, 'r') as f:
+                idp = f.read()
+        else:
+            idp = ''
 
         num_nodes = len(glob(join(directory, 'shard-*-0.log')))
         return cls(clients, shards, idp, num_nodes, faults)

@@ -111,6 +111,7 @@ impl BenchmarkClient {
     /// Log the benchmark parameters required to compute performance.
     pub fn print_parameters(&self) {
         // NOTE: These log entries are used to compute performance.
+        info!("Batch size: {} proofs/notification", self.proof_entries);
         info!("Transactions rate: {} tx/s", self.rate);
         for target in &self.targets {
             info!("Target witness address: {}", target);
