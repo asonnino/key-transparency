@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use bytes::BytesMut;
-use clap::{arg, crate_name, crate_version, Command, Arg};
+use clap::{arg, crate_name, crate_version, Arg, Command};
 use config::{Committee, Import};
 use futures::future::join_all;
 use futures::stream::futures_unordered::FuturesUnordered;

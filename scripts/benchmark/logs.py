@@ -54,8 +54,7 @@ class LogParser:
 
         # Parse the idp log.
         self.batch_size = 1  # In case of witness-only benchmark.
-        self.too_slow = 0  # In case of witness-only benchmark.
-        self.batch_size, self.confirmations, self.too_slow = \
+        self.batch_size, self.confirmations, self.requests = \
             self._parse_idp(idp)
 
         # Determine whether the shards are collocated.
@@ -65,13 +64,6 @@ class LogParser:
         if self.misses != 0:
             Print.warn(
                 f'Clients missed their target rate {self.misses:,} time(s)'
-            )
-
-         # Check whether clients missed their target rate.
-        if self.too_slow != 0:
-            Print.warn(
-                f'Clients rate too slow ({self.too_slow:,}x), '
-                'tps is overestimated'
             )
 
     def _keep_earliest(self, input):
@@ -144,9 +136,10 @@ class LogParser:
         tmp = [(int(d), self._to_posix(t)) for t, d in tmp]
         certificates = self._keep_earliest([tmp])  # Unnecessary
 
-        too_slow = len(findall(r'sealing batch early', log))
+        tmp = findall(r'Batch (\d+) contains sample tx (\d+)', log)
+        requests = {int(t): int(b) for b, t in tmp}
 
-        return batch_size, certificates, too_slow
+        return batch_size, certificates, requests
 
     def _to_posix(self, string):
         x = datetime.fromisoformat(string.replace('Z', '+00:00'))
@@ -182,10 +175,12 @@ class LogParser:
     def _idp_latency(self):
         latency = []
         for id, start in self.sent_samples.items():
-            if id in self.confirmations:
-                end = self.confirmations[id]
-                assert end >= start
-                latency += [end-start]
+            if id in self.requests:
+                batch = self.requests[id]
+                if batch in self.confirmations:
+                    end = self.confirmations[batch]
+                    assert end >= start
+                    latency += [end-start]
 
         return mean(latency) if latency else 0
 
@@ -201,10 +196,12 @@ class LogParser:
     def _end_to_end_latency(self):
         latency = []
         for id, start in self.sent_samples.items():
-            if id in self.commits:
-                end = self.commits[id]
-                assert end >= start
-                latency += [end-start]
+            if id in self.requests:
+                batch = self.requests[id]
+                if batch in self.commits:
+                    end = self.commits[batch]
+                    assert end >= start
+                    latency += [end-start]
         return mean(latency) if latency else 0
 
     def result(self):

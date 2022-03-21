@@ -123,6 +123,9 @@ where
     /// Main loop receiving batches of client requests.
     async fn run(&mut self) {
         while let Some(batch) = self.rx_batch.recv().await {
+            #[cfg(feature = "benchmark")]
+            Self::link_requests_and_notifications(self.sequence_number + 1, &batch);
+
             // Compute the audit proof (CPU-intensive).
             let (root, proof) = self.make_proof(batch).await;
 
@@ -138,6 +141,20 @@ where
                 .send(notification)
                 .await
                 .expect("Failed to deliver serialized notification");
+        }
+    }
+
+    #[cfg(feature = "benchmark")]
+    fn link_requests_and_notifications(sequence: SequenceNumber, batch: &Batch) {
+        for request in batch {
+            let string_label = &request.0 .0;
+            let res = string_label
+                .chars()
+                .take_while(|c| c.is_digit(10))
+                .collect::<String>();
+            if let Ok(id) = usize::from_str_radix(&res, 10) {
+                log::info!("Batch {} contains sample tx {}", sequence, id);
+            }
         }
     }
 }

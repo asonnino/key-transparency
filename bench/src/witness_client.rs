@@ -1,7 +1,7 @@
 mod utils;
 
 use anyhow::{anyhow, Context, Result};
-use clap::{arg, crate_name, crate_version, Command,Arg};
+use clap::{arg, crate_name, crate_version, Arg, Command};
 use config::{Committee, Import, PrivateConfig};
 use crypto::KeyPair;
 use futures::future::join_all;

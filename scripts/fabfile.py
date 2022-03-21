@@ -87,7 +87,7 @@ def remote(ctx, debug=False):
         'faults': 0,
         'nodes': [10],
         'proof_entries': 1_000,
-        'rate': [1_000],
+        'rate': [35],
         'duration': 60,
         'runs': 1,
     }
