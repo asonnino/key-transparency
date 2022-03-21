@@ -62,7 +62,7 @@ class Bench:
             'sudo apt-get -y install cmake',
 
             # Required by the akd package.
-            'sudo apt-get -y install pkg-config libssl-dev'
+            'sudo apt-get -y install pkg-config libssl-dev',
 
             # Install rust (non-interactive).
             'curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y',

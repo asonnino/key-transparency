@@ -27,7 +27,7 @@ def local(ctx, debug=True):
 
 
 @task
-def create(ctx, nodes=2):
+def create(ctx, nodes=4):
     ''' Create a testbed'''
     try:
         InstanceManager.make().create_instances(nodes)
@@ -87,7 +87,7 @@ def remote(ctx, debug=False):
         'faults': 0,
         'nodes': [10],
         'proof_entries': 1_000,
-        'rate': [5_000],
+        'rate': [1_000],
         'duration': 60,
         'runs': 1,
     }
