@@ -139,7 +139,7 @@ class BenchParameters:
                 raise ConfigError('Missing input rate')
             self.rate = [int(x) for x in rate]
 
-            self.proof_entries = int(json['proof_entries'])
+            self.batch_size = int(json['batch_size'])
 
             self.shards = json['shards'] if 'shards' in json else 1
 
@@ -179,7 +179,7 @@ class PlotParameters:
                 raise ConfigError('Missing number of nodes')
             self.nodes = [int(x) for x in nodes]
 
-            self.proof_entries = json['proof_entries']
+            self.batch_size = int(json['batch_size'])
 
             shards = json['shards'] if 'shards' in json else [1]
             shards = shards if isinstance(shards, list) else [shards]

@@ -212,7 +212,7 @@ class Bench:
             PathMaker.committee_file(),
             rate,
             PathMaker.idp_key_file(),
-            bench_parameters.proof_entries,
+            bench_parameters.batch_size,
             debug
         )
         log_file = PathMaker.client_log_file(0, 0)
@@ -227,7 +227,7 @@ class Bench:
                 PathMaker.idp_secure_db_path(),
                 PathMaker.sync_db_path(),
                 PathMaker.akd_db_path(),
-                bench_parameters.proof_entries,
+                bench_parameters.batch_size,
                 debug=debug
             )
             log_file = PathMaker.idp_log_file()

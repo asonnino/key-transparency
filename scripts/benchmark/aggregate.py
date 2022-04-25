@@ -10,14 +10,14 @@ from benchmark.utils import PathMaker
 
 
 class Setup:
-    def __init__(self, faults, nodes, shards, collocate, rate, coconut):
+    def __init__(self, faults, nodes, shards, collocate, rate, batch_size):
         self.nodes = nodes
         self.shards = shards
         self.collocate = collocate
         self.rate = rate
         self.faults = faults
         self.max_latency = 'any'
-        self.coconut = coconut
+        self.batch_size = batch_size
 
     def __str__(self):
         return (
@@ -25,7 +25,7 @@ class Setup:
             f' Committee size: {self.nodes}\n'
             f' Shards per node: {self.shards}\n'
             f' Collocate shards: {self.collocate}\n'
-            f' Coconut: {self.coconut}\n'
+            f' Batch size: {self.batch_size}\n'
             f' Input rate: {self.rate} tx/s\n'
             f' Max latency: {self.max_latency} ms\n'
         )
@@ -44,11 +44,9 @@ class Setup:
         collocate = 'True' == search(
             r'Collocate shards: (True|False)', raw
         ).group(1)
-        coconut = 'True' == search(
-            r'Coconut: (True|False)', raw
-        ).group(1)
+        batch_size = int(search(r'Batch size: (\d+)', raw).group(1))
         rate = int(search(r'Input rate: (\d+)', raw).group(1))
-        return cls(faults, nodes, shards, collocate, rate, coconut)
+        return cls(faults, nodes, shards, collocate, rate, batch_size)
 
 
 class Result:
@@ -134,8 +132,8 @@ class LogAggregator:
                     setup.shards,
                     setup.collocate,
                     setup.rate,
+                    setup.batch_size,
                     max_latency=None if max_lat == 'any' else max_lat,
-                    coconut=setup.coconut
                 )
                 with open(filename, 'w') as f:
                     f.write(string)

@@ -82,7 +82,7 @@ class LocalBench:
                 PathMaker.committee_file(),
                 rate,
                 idp_key_file,
-                self.proof_entries,
+                self.batch_size,
                 debug
             )
             log_file = PathMaker.client_log_file(0, 0)
@@ -96,7 +96,7 @@ class LocalBench:
                     PathMaker.idp_secure_db_path(),
                     PathMaker.sync_db_path(),
                     PathMaker.akd_db_path(),
-                    self.proof_entries,
+                    self.batch_size,
                     debug=debug
                 )
                 log_file = PathMaker.idp_log_file()

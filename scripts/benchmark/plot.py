@@ -24,8 +24,8 @@ def default_major_formatter(x, pos):
 def sec_major_formatter(x, pos):
     if pos is None:
         return
-    # return f'{float(x)/1000:.1f}'
-    return f'{x:,.0f}'
+    return f'{float(x)/1000:.1f}'
+    # return f'{x:,.0f}'
 
 
 @tick.FuncFormatter
@@ -102,11 +102,11 @@ class Ploter:
 
     @staticmethod
     def nodes(data):
-        shards = search(r'Shards per node: (\d+)', data).group(1)
+        batch_size = search(r'Batch size: (\d+)', data).group(1)
         x = search(r'Committee size: (\d+)', data).group(1)
         f = search(r'Faults: (\d+)', data).group(1)
         faults = f' - {f} faulty' if f != '0' else ''
-        return f'{x} nodes ({shards} shards){faults}'
+        return f'{x} nodes (batch size: {batch_size}){faults}'
 
     @staticmethod
     def shards(data):
@@ -129,7 +129,7 @@ class Ploter:
         assert all(isinstance(x, str) for x in files)
         z_axis = cls.shards if scalability else cls.nodes
         x_label = 'Throughput (tx/s)'
-        y_label = ['Latency (ms)']
+        y_label = ['Latency (s)']
         ploter = cls(files)
         ploter._plot(
             x_label, y_label, ploter._latency, z_axis, 'latency', y_max
@@ -168,7 +168,7 @@ class Ploter:
                         x if params.scalability() else params.shards[0],
                         params.collocate,
                         'any',
-                        coconut=params.coconut
+                        params.batch_size,
                     )
                 )
 
@@ -181,11 +181,11 @@ class Ploter:
                         'x' if params.scalability() else params.shards[0],
                         params.collocate,
                         'any',
+                        params.batch_size,
                         max_latency=l,
-                        coconut=params.coconut
                     )
                 )
 
-        y_max = 3_000 if params.coconut else 1_000
+        y_max = 30_000
         cls.plot_latency(latency_files, params.scalability(), y_max)
         cls.plot_tps(tps_files, params.scalability())
