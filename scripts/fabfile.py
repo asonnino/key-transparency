@@ -86,11 +86,10 @@ def remote(ctx, debug=False):
     bench_params = {
         'faults': 0,
         'nodes': [10],
-        'proof_entries': 5_00,
-        'rate': [250],
-        'witness-only': True,
-        'duration': 60,
-        'runs': 1,
+        'proof_entries': 1_024,
+        'rate': [300, 100],
+        'duration': 300,
+        'runs': 2,
     }
     try:
         Bench(ctx).run(bench_params, debug)
