@@ -1,7 +1,7 @@
 # SYSNAME
 
 [![build status](https://img.shields.io/github/workflow/status/asonnino/key-transparency/Rust/master?style=flat-square&logo=github)](https://github.com/asonnino/key-transparency/actions)
-[![rustc](https://img.shields.io/badge/rustc-1.64+-blue?style=flat-square&logo=rust)](https://www.rust-lang.org)
+[![rustc](https://img.shields.io/badge/rustc-1.62+-blue?style=flat-square&logo=rust)](https://www.rust-lang.org)
 [![license](https://img.shields.io/badge/license-Apache-blue.svg?style=flat-square)](LICENSE)
 
 This repo provides an prototype implementation of [SYSNAME](), based on [akd](https://github.com/novifinancial/akd). The codebase has been designed to be small, efficient, and easy to benchmark and modify. It has not been designed to run in production but uses real cryptography ([dalek](https://doc.dalek.rs/ed25519_dalek)), networking ([tokio](https://docs.rs/tokio)), and storage ([rocksdb](https://docs.rs/rocksdb)).
@@ -60,7 +60,19 @@ This command may take a long time the first time you run it (compiling rust code
 The following command micro-benchmarks the main functions of the IdP and witnesses on your local machine:
 
 ```bash
-cargo run --features=micro-benchmark --release --bin micro_benchmark
+cargo run --release --features=micro-benchmark --bin micro_benchmark
+```
+
+The command may take a long time depending on the benchmark parameters (set in [micro_benchmark.rs](https://github.com/asonnino/key-transparency/blob/main/bench/src/micro_benchmark.rs)). When the command terminates, it displays should display results similar to the ones below:
+
+```
+Starting micro-benchmarks:
+    20.98 +/- 0.41  ms ...........create notification
+     3.11 +/- 0.03  ms ...........verify notification
+     0.01 +/- 0.00  ms ...................create vote
+     0.03 +/- 0.00  ms ...................verify vote
+     0.00 +/- 0.00  ms .........aggregate certificate
+     0.08 +/- 0.00  ms ............verify certificate
 ```
 
 ## License
