@@ -27,9 +27,12 @@ class LocalBench:
         subprocess.run(['tmux', 'new', '-d', '-s', name, cmd], check=True)
 
     def _kill_nodes(self):
+        print("KILLING NODES")
         try:
             cmd = CommandMaker.kill().split()
-            subprocess.run(cmd, stderr=subprocess.DEVNULL)
+            # subprocess.run(cmd, stderr=subprocess.DEVNULL)
+            subprocess.run(cmd, shell=True)
+            print("KILLING NODES OK")
         except subprocess.SubprocessError as e:
             raise BenchError('Failed to kill testbed', e)
 
