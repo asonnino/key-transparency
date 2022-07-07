@@ -59,7 +59,7 @@ impl Batcher {
                     let update = match bincode::deserialize(&bytes) {
                         Ok(x) => x,
                         Err(e) => {
-                            warn!("{}", e);
+                            warn!("Failed to deserialize request: {}", e);
                             continue;
                         }
                     };

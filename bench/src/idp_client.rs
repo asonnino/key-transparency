@@ -1,5 +1,6 @@
+use akd::{AkdLabel, AkdValue};
 use anyhow::{Context, Result};
-use bytes::{BufMut, BytesMut};
+use bytes::{BufMut, Bytes, BytesMut};
 use clap::{arg, crate_name, crate_version, Arg, Command};
 use config::{Committee, Import};
 use futures::future::join_all;
@@ -128,7 +129,8 @@ impl BenchmarkClient {
 
         let mut network = ReliableSender::new();
         let address = self.committee.idp.address;
-        let mut tx = BytesMut::with_capacity(self.size);
+        let mut key = BytesMut::with_capacity(self.size);
+        let value = AkdValue(vec![0; self.size]);
         let mut pending = FuturesUnordered::new();
 
         // Submit all transactions.
@@ -143,9 +145,12 @@ impl BenchmarkClient {
                     let now = Instant::now();
                     for x in 1..=burst {
                         let id = counter * burst + x;
-                        tx.put_u64(id);
-                        tx.resize(self.size, 0u8);
-                        let bytes = tx.split().freeze();
+                        key.put_u64(id);
+                        key.resize(self.size, 0u8);
+                        let label = AkdLabel(key.split().freeze().to_vec());
+
+                        let update = (label, value.clone());
+                        let bytes = Bytes::from(bincode::serialize(&update).unwrap());
 
                         let handle = network.send(address, bytes).await;
                         pending.push(handle);
