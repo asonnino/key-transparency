@@ -59,7 +59,7 @@ async fn main() -> Result<()> {
     let proof_entries = matches
         .value_of("proof_entries")
         .unwrap()
-        .parse::<usize>()
+        .parse::<u64>()
         .context("The number of key updates per proof must be a non-negative integer")?;
 
     // Make a benchmark client.
@@ -85,14 +85,14 @@ pub struct BenchmarkClient {
     /// The number of requests per seconds that this client submits.
     rate: u64,
     /// The number of key updates per proof.
-    proof_entries: usize,
+    proof_entries: u64,
     /// The network address of the witnesses.
     targets: Vec<SocketAddr>,
 }
 
 impl BenchmarkClient {
     /// Creates a new benchmark client.
-    pub fn new(idp: KeyPair, committee: Committee, rate: u64, proof_entries: usize) -> Self {
+    pub fn new(idp: KeyPair, committee: Committee, rate: u64, proof_entries: u64) -> Self {
         let targets: Vec<_> = committee
             .witnesses_addresses()
             .into_iter()

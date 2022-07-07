@@ -20,6 +20,6 @@ witness = { path = "../witness" }
 idp = { path = "../idp" }
 
 [dependencies.akd]
-version = "0.5.0"
 git = "https://github.com/asonnino/akd"
-branch = "main"
+rev = "fc2f32f13910e6111b7f34aac9fe36717c22b762"
+features = ["serde_serialization"]

@@ -1,8 +1,9 @@
 use crate::Storage;
 use akd::errors::StorageError as AkdStorageError;
-use akd::node_state::NodeLabel;
 use akd::storage::transaction::Transaction;
-use akd::storage::types::{AkdLabel, DbRecord, KeyData, ValueState, ValueStateRetrievalFlag};
+use akd::storage::types::{
+    AkdLabel, AkdValue, DbRecord, KeyData, ValueState, ValueStateKey, ValueStateRetrievalFlag,
+};
 use akd::storage::Storable as AkdStorable;
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -54,8 +55,6 @@ impl akd::storage::Storage for AkdStorage {
         self.transaction.is_transaction_active().await
     }
 
-    async fn flush_cache(&self) {}
-
     async fn set(&self, record: DbRecord) -> Result<(), AkdStorageError> {
         if self.is_transaction_active().await {
             self.transaction.set(&record).await;
@@ -66,13 +65,13 @@ impl akd::storage::Storage for AkdStorage {
             Ok(x) => x,
             Err(e) => {
                 let error = format!("Serialization error: {}", e);
-                return Err(AkdStorageError::SetData(error));
+                return Err(AkdStorageError::Other(error));
             }
         };
         let guard = self.database.write().await;
         guard
             .write(&record.get_full_binary_id(), &serialized)
-            .map_err(|e| AkdStorageError::SetData(format!("Failed to persist record: {}", e)))
+            .map_err(|e| AkdStorageError::Other(format!("Failed to persist record: {}", e)))
     }
 
     async fn batch_set(&self, records: Vec<DbRecord>) -> Result<(), AkdStorageError> {
@@ -83,29 +82,29 @@ impl akd::storage::Storage for AkdStorage {
         Ok(())
     }
 
-    async fn get<St: AkdStorable>(&self, id: St::Key) -> Result<DbRecord, AkdStorageError> {
+    async fn get<St: AkdStorable>(&self, id: &St::Key) -> Result<DbRecord, AkdStorageError> {
         if self.is_transaction_active().await {
-            if let Some(result) = self.transaction.get::<St>(&id).await {
+            if let Some(result) = self.transaction.get::<St>(id).await {
                 return Ok(result);
             }
         }
 
-        let binary_id = St::get_full_binary_key_id(&id);
+        let binary_id = St::get_full_binary_key_id(id);
         let guard = self.database.read().await;
         match (*guard).read(&binary_id) {
             Ok(Some(bytes)) => bincode::deserialize(&bytes)
-                .map_err(|e| AkdStorageError::GetData(format!("Serialization error: {}", e))),
-            Ok(None) => Err(AkdStorageError::GetData("Not found".to_string())),
-            Err(e) => Err(AkdStorageError::GetData(format!("{}", e))),
+                .map_err(|e| AkdStorageError::Other(format!("Serialization error: {}", e))),
+            Ok(None) => Err(AkdStorageError::NotFound("Not found".to_string())),
+            Err(e) => Err(AkdStorageError::Other(format!("{}", e))),
         }
     }
 
     async fn batch_get<St: AkdStorable>(
         &self,
-        ids: Vec<St::Key>,
+        ids: &[St::Key],
     ) -> Result<Vec<DbRecord>, AkdStorageError> {
         let mut map = Vec::new();
-        for key in ids.into_iter() {
+        for key in ids.iter() {
             if let Ok(result) = self.get::<St>(key).await {
                 map.push(result);
             }
@@ -113,9 +112,11 @@ impl akd::storage::Storage for AkdStorage {
         Ok(map)
     }
 
-    async fn get_direct<St: AkdStorable>(&self, id: St::Key) -> Result<DbRecord, AkdStorageError> {
+    async fn get_direct<St: AkdStorable>(&self, id: &St::Key) -> Result<DbRecord, AkdStorageError> {
         AkdStorage::get::<St>(self, id).await
     }
+
+    async fn flush_cache(&self) {}
 
     async fn get_user_data(&self, _username: &AkdLabel) -> Result<KeyData, AkdStorageError> {
         unimplemented!()
@@ -131,17 +132,13 @@ impl akd::storage::Storage for AkdStorage {
 
     async fn get_user_state_versions(
         &self,
-        _keys: &[AkdLabel],
+        _usernames: &[AkdLabel],
         _flag: ValueStateRetrievalFlag,
-    ) -> Result<HashMap<AkdLabel, u64>, AkdStorageError> {
+    ) -> Result<HashMap<AkdLabel, (u64, AkdValue)>, AkdStorageError> {
         Ok(HashMap::new())
     }
 
-    async fn get_epoch_lte_epoch(
-        &self,
-        _node_label: NodeLabel,
-        _epoch_in_question: u64,
-    ) -> Result<u64, AkdStorageError> {
+    async fn tombstone_value_states(&self, _keys: &[ValueStateKey]) -> Result<(), AkdStorageError> {
         unimplemented!()
     }
 }

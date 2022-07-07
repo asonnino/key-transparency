@@ -112,7 +112,8 @@ impl PublishNotification {
         self.signature.verify(&self.id, &committee.idp.name)?;
 
         // Verify the commit proof.
-        akd::auditor::audit_verify::<Blake3>(*previous_root, self.root, self.proof.clone()).await?;
+        let hashes = vec![*previous_root, self.root];
+        akd::auditor::audit_verify::<Blake3>(hashes, self.proof.clone()).await?;
 
         Ok(())
     }

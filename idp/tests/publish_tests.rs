@@ -71,7 +71,7 @@ async fn faulty_witness() {
         })
         .collect();
 
-    // Send a enough correct updates to create a batch.
+    // Send enough correct updates to create a batch.
     let mut network = ReliableSender::new();
     for update in serialized_updates() {
         let handle = network.send(address, update).await;

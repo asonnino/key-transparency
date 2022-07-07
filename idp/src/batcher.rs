@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use log::{debug, warn};
-use messages::update::{deserialize_request, Batch};
+use messages::update::Batch;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::task::JoinHandle;
 use tokio::time::{sleep, Duration, Instant};
@@ -56,7 +56,7 @@ impl Batcher {
             tokio::select! {
                 // Assemble client requests into batches of preset size.
                 Some(bytes) = self.rx_request.recv() => {
-                    let update = match deserialize_request(&bytes) {
+                    let update = match bincode::deserialize(&bytes) {
                         Ok(x) => x,
                         Err(e) => {
                             warn!("{}", e);

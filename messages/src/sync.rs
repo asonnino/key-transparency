@@ -1,7 +1,7 @@
 use crate::publish::{PublishMessage, PublishVote};
 use crate::{deserialize_root, serialize_root, Blake3, Root, SequenceNumber};
 use akd::directory::Directory;
-use akd::primitives::akd_vrf::HardCodedAkdVRF;
+use akd::ecvrf::HardCodedAkdVRF;
 use akd::storage::memory::AsyncInMemoryDatabase;
 use futures::executor::block_on;
 use serde::{Deserialize, Serialize};

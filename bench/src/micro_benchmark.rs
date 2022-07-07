@@ -18,7 +18,7 @@ const RUNS: usize = 10;
 const PRECISION: usize = 100;
 
 /// The number of key-values pair in the state tree.
-const DEFAULT_TREE_ENTRIES: usize = 1_000;
+const DEFAULT_TREE_ENTRIES: u64 = 1_000;
 
 /// Run micro-benchmarks for every CPU-intensive operation.
 fn main() {
@@ -70,7 +70,7 @@ where
 }
 
 /// Benchmark the creation of a publish notification.
-fn create_notification(tree_entries: usize) {
+fn create_notification(tree_entries: u64) {
     struct Data(KeyPair);
 
     let setup = || {
@@ -92,7 +92,7 @@ fn create_notification(tree_entries: usize) {
 }
 
 /// Benchmark the verification of a publish notification.
-fn verify_notification(tree_entries: usize) {
+fn verify_notification(tree_entries: u64) {
     struct Data(PublishNotification, Committee, Root);
 
     let setup = || {

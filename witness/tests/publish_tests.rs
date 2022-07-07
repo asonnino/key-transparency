@@ -1,5 +1,5 @@
 use akd::directory::Directory;
-use akd::primitives::akd_vrf::HardCodedAkdVRF;
+use akd::ecvrf::HardCodedAkdVRF;
 use akd::storage::memory::AsyncInMemoryDatabase;
 use akd::storage::types::{AkdLabel, AkdValue};
 use function_name::named;
@@ -113,12 +113,9 @@ async fn conflicting_notification() {
     let db = AsyncInMemoryDatabase::new();
     let vrf = HardCodedAkdVRF {};
     let akd = Directory::new::<Blake3>(&db, &vrf, false).await.unwrap();
-    akd.publish::<Blake3>(
-        vec![(AkdLabel("X".to_string()), AkdValue("Y".to_string()))],
-        false,
-    )
-    .await
-    .unwrap();
+    akd.publish::<Blake3>(vec![(AkdLabel(vec![1, 2, 3]), AkdValue(vec![3, 4, 6]))])
+        .await
+        .unwrap();
     let current_azks = akd.retrieve_current_azks().await.unwrap();
     let root = akd
         .get_root_hash_at_epoch::<Blake3>(&current_azks, /* sequence number */ 1)

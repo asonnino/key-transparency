@@ -20,14 +20,14 @@ storage = { path = "../storage" }
 network = { path = "../network" }
 messages = { path = "../messages" }
 
+[dependencies.akd]
+git = "https://github.com/asonnino/akd"
+rev = "fc2f32f13910e6111b7f34aac9fe36717c22b762"
+features = ["serde_serialization"]
+
 [dev-dependencies]
 test_utils = { path = "../test_utils" }
 function_name = "0.2.0"
-
-[dev-dependencies.akd]
-version = "0.5.0"
-git = "https://github.com/asonnino/akd"
-branch = "main"
 
 [features]
 witness-only-benchmark = []

@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use bytes::BytesMut;
+use bytes::{BufMut, BytesMut};
 use clap::{arg, crate_name, crate_version, Arg, Command};
 use config::{Committee, Import};
 use futures::future::join_all;
@@ -143,8 +143,7 @@ impl BenchmarkClient {
                     let now = Instant::now();
                     for x in 1..=burst {
                         let id = counter * burst + x;
-                        let string = format!("{}", id);
-                        tx.extend_from_slice(string.as_bytes());
+                        tx.put_u64(id);
                         tx.resize(self.size, 0u8);
                         let bytes = tx.split().freeze();
 

@@ -1,6 +1,6 @@
 use crate::STORE_LAST_NOTIFICATION_ADDR;
 use akd::directory::Directory;
-use akd::primitives::akd_vrf::HardCodedAkdVRF;
+use akd::ecvrf::HardCodedAkdVRF;
 use crypto::KeyPair;
 use futures::executor::block_on;
 use messages::publish::{Proof, PublishNotification};
@@ -97,7 +97,7 @@ where
 
         // Persist the batch.
         self.akd
-            .publish::<Blake3>(batch, /* use_transaction */ false)
+            .publish::<Blake3>(batch)
             .await
             .expect("Failed to persist publish request");
 
@@ -147,14 +147,9 @@ where
     #[cfg(feature = "benchmark")]
     fn link_requests_and_notifications(sequence: SequenceNumber, batch: &Batch) {
         for request in batch {
-            let string_label = &request.0 .0;
-            let res = string_label
-                .chars()
-                .take_while(|c| c.is_digit(10))
-                .collect::<String>();
-            if let Ok(id) = usize::from_str_radix(&res, 10) {
-                log::info!("Batch {} contains sample tx {}", sequence, id);
-            }
+            let (label, _) = request;
+            let id = u64::from_be_bytes(label.0[0..8].try_into().unwrap());
+            log::info!("Batch {} contains sample tx {}", sequence, id);
         }
     }
 }

@@ -1,6 +1,6 @@
-use akd::directory::Directory;
-use akd::primitives::akd_vrf::HardCodedAkdVRF;
+use akd::ecvrf::HardCodedAkdVRF;
 use akd::storage::memory::AsyncInMemoryDatabase;
+use akd::{directory::Directory, AkdLabel, AkdValue};
 use bytes::Bytes;
 use config::{Committee, Idp, Witness};
 use crypto::{KeyPair, PublicKey};
@@ -8,7 +8,7 @@ use futures::stream::StreamExt;
 use futures::SinkExt;
 use idp::spawn_idp;
 use messages::publish::{Proof, PublishCertificate, PublishNotification, PublishVote};
-use messages::update::deserialize_request;
+use messages::update::UpdateRequest;
 use messages::{Blake3, IdPToWitnessMessage, Root, WitnessToIdPMessage};
 use network::reliable_sender::{CancelHandler, ReliableSender};
 use rand::rngs::StdRng;
@@ -53,24 +53,34 @@ pub fn committee(base_port: u16) -> Committee {
     }
 }
 
-// A test update request.
+// Test update requests.
+pub fn updates() -> Vec<UpdateRequest> {
+    (0..2)
+        .map(|i| {
+            let label = AkdLabel(vec![1, i]);
+            let value = AkdValue(vec![2, i]);
+            (label, value)
+        })
+        .collect()
+}
+
+// Serialized test update requests.
 pub fn serialized_updates() -> Vec<Bytes> {
-    vec![Bytes::from("AAAA,BBBB"), Bytes::from("CCCC,DDDD")]
+    updates()
+        .iter()
+        .map(|update| Bytes::from(bincode::serialize(&update).unwrap()))
+        .collect()
 }
 
 // Test proof and root hashes.
 pub async fn proof() -> (Root, Root, Proof) {
     // Get test key values.
-    let items = serialized_updates()
-        .iter()
-        .map(|x| deserialize_request(x).unwrap())
-        .collect();
+    let items = updates();
 
     // Create a test tree with dumb key-values.
     let db = AsyncInMemoryDatabase::new();
     let vrf = HardCodedAkdVRF {};
     let akd = Directory::new::<Blake3>(&db, &vrf, false).await.unwrap();
-    akd.publish::<Blake3>(items, false).await.unwrap();
 
     // Compute the start root (at sequence 0) and end root (at sequence 1).
     let current_azks = akd.retrieve_current_azks().await.unwrap();
@@ -78,6 +88,10 @@ pub async fn proof() -> (Root, Root, Proof) {
         .get_root_hash_at_epoch::<Blake3>(&current_azks, /* sequence number */ 0)
         .await
         .unwrap();
+
+    akd.publish::<Blake3>(items).await.unwrap();
+
+    let current_azks = akd.retrieve_current_azks().await.unwrap();
     let end_root = akd
         .get_root_hash_at_epoch::<Blake3>(&current_azks, /* sequence number */ 1)
         .await
