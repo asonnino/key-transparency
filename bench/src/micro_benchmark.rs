@@ -71,6 +71,7 @@ where
 
 /// Benchmark the creation of a publish notification.
 fn create_notification(tree_entries: u64) {
+    let akd_storage_path = ".micro_benchmark_adk_storage";
     struct Data(KeyPair);
 
     let setup = || {
@@ -81,7 +82,6 @@ fn create_notification(tree_entries: u64) {
     let run = |data: &Data| {
         let Data(keypair) = data;
 
-        let akd_storage_path = ".micro_benchmark_adk_storage";
         let _ = std::fs::remove_dir_all(&akd_storage_path);
         let db = AkdStorage::new(akd_storage_path);
         let (_, root, proof) = block_on(proof_with_storage(tree_entries, db));
@@ -89,6 +89,7 @@ fn create_notification(tree_entries: u64) {
     };
 
     bench("create notification", setup, run);
+    let _ = std::fs::remove_dir_all(&akd_storage_path);
 }
 
 /// Benchmark the verification of a publish notification.
