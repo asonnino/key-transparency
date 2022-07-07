@@ -11,14 +11,14 @@ This repo provides an prototype implementation of [SYSNAME](), based on [akd](ht
 The core protocols are written in Rust, but all benchmarking scripts are written in Python and run with [Fabric](http://www.fabfile.org/).
 To deploy and benchmark a testbed of 4 witnesse on your local machine, clone the repo and install the python dependencies:
 
-```
+```bash
 git clone https://github.com/asonnino/key-transparency.git
 cd key-transparency/scripts
 ```
 
 It is advised to install the python dependencies in a virtual environment such as [virtualenv](https://pypi.org/project/virtualenv):
 
-```
+```bash
 virtualenv venv
 source venv/bin/activate
 pip install -r requirements.txt
@@ -26,7 +26,7 @@ pip install -r requirements.txt
 
 You also need to install Clang (required by rocksdb) and [tmux](https://linuxize.com/post/getting-started-with-tmux/#installing-tmux) (which runs all nodes and clients in the background). Finally, run a local benchmark using fabric:
 
-```
+```bash
 fab local
 ```
 
@@ -59,7 +59,7 @@ This command may take a long time the first time you run it (compiling rust code
 
 The following command micro-benchmarks the main functions of the IdP and witnesses on your local machine:
 
-```
+```bash
 cargo run --features=micro-benchmark --release --bin micro_benchmark
 ```
 
