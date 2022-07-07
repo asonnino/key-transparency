@@ -1,10 +1,10 @@
-# SYSNAME
+# BananaTree
 
 [![build status](https://img.shields.io/github/workflow/status/asonnino/key-transparency/Rust/master?style=flat-square&logo=github)](https://github.com/asonnino/key-transparency/actions)
 [![rustc](https://img.shields.io/badge/rustc-1.62+-blue?style=flat-square&logo=rust)](https://www.rust-lang.org)
 [![license](https://img.shields.io/badge/license-Apache-blue.svg?style=flat-square)](LICENSE)
 
-This repo provides an prototype implementation of [SYSNAME](), based on [akd](https://github.com/novifinancial/akd). The codebase has been designed to be small, efficient, and easy to benchmark and modify. It has not been designed to run in production but uses real cryptography ([dalek](https://doc.dalek.rs/ed25519_dalek)), networking ([tokio](https://docs.rs/tokio)), and storage ([rocksdb](https://docs.rs/rocksdb)).
+This repo provides an prototype implementation of [BananaTree](), based on [akd](https://github.com/novifinancial/akd). The codebase has been designed to be small, efficient, and easy to benchmark and modify. It has not been designed to run in production but uses real cryptography ([dalek](https://doc.dalek.rs/ed25519_dalek)), networking ([tokio](https://docs.rs/tokio)), and storage ([rocksdb](https://docs.rs/rocksdb)).
 
 ## Quick Start
 
