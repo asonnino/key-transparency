@@ -1,14 +1,17 @@
 use crate::STORE_LAST_NOTIFICATION_ADDR;
-use akd::directory::Directory;
-use akd::ecvrf::HardCodedAkdVRF;
+use akd::{directory::Directory, ecvrf::HardCodedAkdVRF};
 use crypto::KeyPair;
 use futures::executor::block_on;
-use messages::publish::{Proof, PublishNotification};
-use messages::update::Batch;
-use messages::{Blake3, Root, SequenceNumber};
+use messages::{
+    publish::{Proof, PublishNotification},
+    update::Batch,
+    Blake3, Root, SequenceNumber,
+};
 use storage::Storage;
-use tokio::sync::mpsc::{Receiver, Sender};
-use tokio::task::JoinHandle;
+use tokio::{
+    sync::mpsc::{Receiver, Sender},
+    task::JoinHandle,
+};
 
 /// Create publish notifications from client requests.
 pub struct Prover<AkdStorage> {

@@ -1,7 +1,6 @@
 use super::*;
 use futures::sink::SinkExt as _;
-use tokio::sync::mpsc::channel;
-use tokio::sync::mpsc::Sender;
+use tokio::sync::mpsc::{channel, Sender};
 
 #[derive(Clone)]
 struct TestHandler {

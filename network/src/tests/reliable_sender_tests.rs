@@ -1,7 +1,6 @@
 use super::*;
 use futures::future::try_join_all;
-use tokio::net::TcpListener;
-use tokio::task::JoinHandle;
+use tokio::{net::TcpListener, task::JoinHandle};
 
 pub fn listener(address: SocketAddr, expected: String) -> JoinHandle<()> {
     tokio::spawn(async move {

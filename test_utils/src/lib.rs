@@ -1,22 +1,22 @@
-use akd::ecvrf::HardCodedAkdVRF;
-use akd::storage::memory::AsyncInMemoryDatabase;
-use akd::{directory::Directory, AkdLabel, AkdValue};
+use akd::{
+    directory::Directory, ecvrf::HardCodedAkdVRF, storage::memory::AsyncInMemoryDatabase, AkdLabel,
+    AkdValue,
+};
 use bytes::Bytes;
 use config::{Committee, Idp, Witness};
 use crypto::{KeyPair, PublicKey};
-use futures::stream::StreamExt;
-use futures::SinkExt;
+use futures::{stream::StreamExt, SinkExt};
 use idp::spawn_idp;
-use messages::publish::{Proof, PublishCertificate, PublishNotification, PublishVote};
-use messages::update::UpdateRequest;
-use messages::{Blake3, IdPToWitnessMessage, Root, WitnessToIdPMessage};
+use messages::{
+    publish::{Proof, PublishCertificate, PublishNotification, PublishVote},
+    update::UpdateRequest,
+    Blake3, IdPToWitnessMessage, Root, WitnessToIdPMessage,
+};
 use network::reliable_sender::{CancelHandler, ReliableSender};
-use rand::rngs::StdRng;
-use rand::SeedableRng;
+use rand::{rngs::StdRng, SeedableRng};
 use std::net::SocketAddr;
 use storage::Storage;
-use tokio::net::TcpListener;
-use tokio::task::JoinHandle;
+use tokio::{net::TcpListener, task::JoinHandle};
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 use witness::spawn_witness;
 

@@ -1,9 +1,11 @@
 use bytes::Bytes;
 use function_name::named;
 use futures::future::try_join_all;
-use messages::publish::PublishCertificate;
-use messages::sync::{PublishCertificateQuery, State};
-use messages::{IdPToWitnessMessage, WitnessToIdPMessage};
+use messages::{
+    publish::PublishCertificate,
+    sync::{PublishCertificateQuery, State},
+    IdPToWitnessMessage, WitnessToIdPMessage,
+};
 use network::reliable_sender::ReliableSender;
 use test_utils::{
     broadcast_certificate, committee, delete_storage, notification, spawn_test_witnesses, votes,

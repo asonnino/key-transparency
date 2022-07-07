@@ -1,10 +1,11 @@
 use ed25519_dalek as dalek;
 use ed25519_dalek::{Signer, Verifier};
-use rand::rngs::OsRng;
-use rand::{CryptoRng, RngCore};
+use rand::{rngs::OsRng, CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
-use std::array::TryFromSliceError;
-use std::convert::{TryFrom, TryInto};
+use std::{
+    array::TryFromSliceError,
+    convert::{TryFrom, TryInto},
+};
 
 #[cfg(test)]
 #[path = "tests/crypto_tests.rs"]

@@ -7,8 +7,7 @@ use error::{WitnessError, WitnessResult};
 use publish::{PublishCertificate, PublishNotification, PublishVote};
 use serde::{Deserialize, Serialize};
 use sync::{PublishCertificateQuery, State};
-use winter_crypto::hashers::Blake3_256;
-use winter_crypto::{Digest as _, Hasher};
+use winter_crypto::{hashers::Blake3_256, Digest as _, Hasher};
 use winter_math::fields::f128::BaseElement;
 use winter_utils::{Deserializable, SliceReader};
 

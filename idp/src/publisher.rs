@@ -1,21 +1,28 @@
-use crate::aggregator::Aggregator;
-use crate::synchronizer::{NewCertificate, SyncTrigger};
-use crate::STORE_LAST_NOTIFICATION_ADDR;
+use crate::{
+    aggregator::Aggregator,
+    synchronizer::{NewCertificate, SyncTrigger},
+    STORE_LAST_NOTIFICATION_ADDR,
+};
 use bytes::Bytes;
 use config::Committee;
 use crypto::PublicKey;
-use futures::stream::futures_unordered::FuturesUnordered;
-use futures::stream::StreamExt;
+use futures::stream::{futures_unordered::FuturesUnordered, StreamExt};
 use log::{debug, info, warn};
-use messages::error::{IdpError, IdpResult, WitnessError};
-use messages::publish::{PublishNotification, PublishVote};
-use messages::{IdPToWitnessMessage, Root, SequenceNumber, WitnessToIdPMessage};
+use messages::{
+    error::{IdpError, IdpResult, WitnessError},
+    publish::{PublishNotification, PublishVote},
+    IdPToWitnessMessage, Root, SequenceNumber, WitnessToIdPMessage,
+};
 use network::reliable_sender::{CancelHandler, ReliableSender};
 use std::net::SocketAddr;
 use storage::Storage;
-use tokio::sync::mpsc::{Receiver, Sender};
-use tokio::sync::oneshot;
-use tokio::task::JoinHandle;
+use tokio::{
+    sync::{
+        mpsc::{Receiver, Sender},
+        oneshot,
+    },
+    task::JoinHandle,
+};
 
 /// Broadcast publish notifications to the witnesses, gather votes and broadcast certificates.
 pub struct Publisher {

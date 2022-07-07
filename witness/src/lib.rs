@@ -1,23 +1,26 @@
 mod publish_handler;
 mod sync_helper;
 
-use crate::publish_handler::PublishHandler;
-use crate::sync_helper::SyncHelper;
+use crate::{publish_handler::PublishHandler, sync_helper::SyncHelper};
 use async_trait::async_trait;
 use bytes::Bytes;
 use config::Committee;
 use crypto::KeyPair;
 use futures::sink::SinkExt;
 use log::info;
-use messages::error::MessageError;
-use messages::publish::{PublishCertificate, PublishNotification};
-use messages::sync::PublishCertificateQuery;
-use messages::{IdPToWitnessMessage, SerializedPublishCertificateMessage, WitnessToIdPMessage};
+use messages::{
+    error::MessageError,
+    publish::{PublishCertificate, PublishNotification},
+    sync::PublishCertificateQuery,
+    IdPToWitnessMessage, SerializedPublishCertificateMessage, WitnessToIdPMessage,
+};
 use network::receiver::{MessageHandler, Receiver as NetworkReceiver, Writer};
 use std::error::Error;
 use storage::Storage;
-use tokio::sync::mpsc::{channel, Sender};
-use tokio::sync::oneshot;
+use tokio::sync::{
+    mpsc::{channel, Sender},
+    oneshot,
+};
 
 /// The default size of inter-tasks channels.
 pub(crate) const DEFAULT_CHANNEL_SIZE: usize = 1_000;

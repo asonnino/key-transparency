@@ -1,13 +1,19 @@
-use akd::directory::Directory;
-use akd::ecvrf::HardCodedAkdVRF;
-use akd::storage::memory::AsyncInMemoryDatabase;
-use akd::storage::types::{AkdLabel, AkdValue};
+use akd::{
+    directory::Directory,
+    ecvrf::HardCodedAkdVRF,
+    storage::{
+        memory::AsyncInMemoryDatabase,
+        types::{AkdLabel, AkdValue},
+    },
+};
 use function_name::named;
 use futures::future::try_join_all;
-use messages::error::WitnessError;
-use messages::publish::{PublishCertificate, PublishNotification, PublishVote};
-use messages::sync::State;
-use messages::{Blake3, WitnessToIdPMessage};
+use messages::{
+    error::WitnessError,
+    publish::{PublishCertificate, PublishNotification, PublishVote},
+    sync::State,
+    Blake3, WitnessToIdPMessage,
+};
 use test_utils::{
     broadcast_certificate, broadcast_notification, certificate, committee, delete_storage, keys,
     notification, proof, spawn_test_witnesses, votes,

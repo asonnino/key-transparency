@@ -3,13 +3,16 @@ use anyhow::{Context, Result};
 use bytes::{BufMut, Bytes, BytesMut};
 use clap::{arg, crate_name, crate_version, Arg, Command};
 use config::{Committee, Import};
-use futures::future::join_all;
-use futures::stream::futures_unordered::FuturesUnordered;
-use futures::stream::StreamExt;
+use futures::{
+    future::join_all,
+    stream::{futures_unordered::FuturesUnordered, StreamExt},
+};
 use log::{info, warn};
 use network::reliable_sender::ReliableSender;
-use tokio::net::TcpStream;
-use tokio::time::{interval, sleep, Duration, Instant};
+use tokio::{
+    net::TcpStream,
+    time::{interval, sleep, Duration, Instant},
+};
 
 /// The default size of an update request (key + value).
 const DEFAULT_UPDATE_SIZE: usize = 64;

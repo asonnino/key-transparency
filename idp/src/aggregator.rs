@@ -1,8 +1,11 @@
 use config::{Committee, VotingPower};
 use crypto::{PublicKey, Signature};
-use messages::error::{IdpError, IdpResult, MessageError};
-use messages::publish::{PublishCertificate, PublishVote};
-use messages::{ensure, Root};
+use messages::{
+    ensure,
+    error::{IdpError, IdpResult, MessageError},
+    publish::{PublishCertificate, PublishVote},
+    Root,
+};
 use std::collections::HashSet;
 
 /// Aggregates votes into a certificate.

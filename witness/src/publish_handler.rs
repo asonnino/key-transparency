@@ -2,10 +2,13 @@ use crate::Replier;
 use config::Committee;
 use crypto::KeyPair;
 use log::{debug, info, warn};
-use messages::error::{WitnessError, WitnessResult};
-use messages::publish::{PublishCertificate, PublishMessage, PublishNotification, PublishVote};
-use messages::sync::State;
-use messages::{ensure, SequenceNumber, SerializedPublishCertificateMessage, WitnessToIdPMessage};
+use messages::{
+    ensure,
+    error::{WitnessError, WitnessResult},
+    publish::{PublishCertificate, PublishMessage, PublishNotification, PublishVote},
+    sync::State,
+    SequenceNumber, SerializedPublishCertificateMessage, WitnessToIdPMessage,
+};
 use storage::Storage;
 use tokio::sync::mpsc::{Receiver, Sender};
 

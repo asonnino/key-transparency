@@ -1,8 +1,6 @@
 use super::*;
-use ed25519_dalek::Digest as _;
-use ed25519_dalek::Sha512;
-use rand::rngs::StdRng;
-use rand::SeedableRng;
+use ed25519_dalek::{Digest as _, Sha512};
+use rand::{rngs::StdRng, SeedableRng};
 
 #[derive(Serialize, Deserialize)]
 struct Message {

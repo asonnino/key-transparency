@@ -1,13 +1,17 @@
 use crate::Storage;
-use akd::errors::StorageError as AkdStorageError;
-use akd::storage::transaction::Transaction;
-use akd::storage::types::{
-    AkdLabel, AkdValue, DbRecord, KeyData, ValueState, ValueStateKey, ValueStateRetrievalFlag,
+use akd::{
+    errors::StorageError as AkdStorageError,
+    storage::{
+        transaction::Transaction,
+        types::{
+            AkdLabel, AkdValue, DbRecord, KeyData, ValueState, ValueStateKey,
+            ValueStateRetrievalFlag,
+        },
+        Storable as AkdStorable,
+    },
 };
-use akd::storage::Storable as AkdStorable;
 use async_trait::async_trait;
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
 pub struct AkdStorage {

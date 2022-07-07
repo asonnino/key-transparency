@@ -1,14 +1,20 @@
 #![allow(dead_code)]
 
-use akd::directory::Directory;
-use akd::ecvrf::HardCodedAkdVRF;
-use akd::storage::memory::AsyncInMemoryDatabase;
-use akd::storage::types::{AkdLabel, AkdValue};
+use akd::{
+    directory::Directory,
+    ecvrf::HardCodedAkdVRF,
+    storage::{
+        memory::AsyncInMemoryDatabase,
+        types::{AkdLabel, AkdValue},
+    },
+};
 use bytes::{BufMut, Bytes, BytesMut};
 use config::Committee;
 use crypto::KeyPair;
-use messages::publish::{Proof, PublishCertificate, PublishNotification, PublishVote};
-use messages::{Blake3, IdPToWitnessMessage, Root};
+use messages::{
+    publish::{Proof, PublishCertificate, PublishNotification, PublishVote},
+    Blake3, IdPToWitnessMessage, Root,
+};
 
 /// Create a publish proof from a tree with the specified number of key-value pairs and an in-memory storage.
 pub async fn proof(entries: u64) -> (Root, Root, Proof) {

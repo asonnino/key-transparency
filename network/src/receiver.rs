@@ -3,8 +3,7 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use futures::stream::{SplitSink, StreamExt};
 use log::{debug, info, warn};
-use std::error::Error;
-use std::net::SocketAddr;
+use std::{error::Error, net::SocketAddr};
 use tokio::net::{TcpListener, TcpStream};
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 

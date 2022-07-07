@@ -1,11 +1,11 @@
 use crypto::{KeyPair, PublicKey};
-use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
-use std::fs::{self, OpenOptions};
-use std::io::BufWriter;
-use std::io::Write as _;
-use std::net::SocketAddr;
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use std::{
+    collections::BTreeMap,
+    fs::{self, OpenOptions},
+    io::{BufWriter, Write as _},
+    net::SocketAddr,
+};
 use thiserror::Error;
 
 #[derive(Error, Debug)]

@@ -1,16 +1,16 @@
 use bytes::Bytes;
 use config::Committee;
 use crypto::PublicKey;
-use futures::stream::futures_unordered::FuturesUnordered;
-use futures::stream::StreamExt;
+use futures::stream::{futures_unordered::FuturesUnordered, StreamExt};
 use log::debug;
 use messages::SequenceNumber;
 use network::reliable_sender::{CancelHandler, ReliableSender};
 use std::collections::HashMap;
 use storage::Storage;
-use tokio::sync::mpsc::Receiver;
-use tokio::sync::oneshot;
-use tokio::task::JoinHandle;
+use tokio::{
+    sync::{mpsc::Receiver, oneshot},
+    task::JoinHandle,
+};
 
 /// The maximum number of pending updates per witness.
 const MAX_PENDING_UPDATES: usize = 100;

@@ -4,15 +4,18 @@ use anyhow::{anyhow, Context, Result};
 use clap::{arg, crate_name, crate_version, Arg, Command};
 use config::{Committee, Import, PrivateConfig};
 use crypto::KeyPair;
-use futures::future::join_all;
-use futures::stream::futures_unordered::FuturesUnordered;
-use futures::stream::StreamExt;
+use futures::{
+    future::join_all,
+    stream::{futures_unordered::FuturesUnordered, StreamExt},
+};
 use log::{debug, info, warn};
 use messages::WitnessToIdPMessage;
 use network::reliable_sender::ReliableSender;
 use std::net::SocketAddr;
-use tokio::net::TcpStream;
-use tokio::time::{interval, sleep, Duration, Instant};
+use tokio::{
+    net::TcpStream,
+    time::{interval, sleep, Duration, Instant},
+};
 use utils::{CertificateGenerator, NotificationGenerator};
 
 #[tokio::main]

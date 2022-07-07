@@ -1,16 +1,21 @@
 use crate::error::NetworkError;
 use bytes::Bytes;
-use futures::sink::SinkExt;
-use futures::stream::StreamExt;
+use futures::{sink::SinkExt, stream::StreamExt};
 use log::{info, warn};
-use std::cmp::min;
-use std::collections::{HashMap, VecDeque};
-use std::fmt::Debug;
-use std::net::SocketAddr;
-use tokio::net::TcpStream;
-use tokio::sync::mpsc::{channel, Receiver, Sender};
-use tokio::sync::oneshot;
-use tokio::time::{sleep, Duration};
+use std::{
+    cmp::min,
+    collections::{HashMap, VecDeque},
+    fmt::Debug,
+    net::SocketAddr,
+};
+use tokio::{
+    net::TcpStream,
+    sync::{
+        mpsc::{channel, Receiver, Sender},
+        oneshot,
+    },
+    time::{sleep, Duration},
+};
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 
 #[cfg(test)]

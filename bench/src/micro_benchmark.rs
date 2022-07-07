@@ -3,8 +3,10 @@ mod utils;
 use config::Committee;
 use crypto::KeyPair;
 use futures::executor::block_on;
-use messages::publish::{PublishCertificate, PublishNotification, PublishVote};
-use messages::Root;
+use messages::{
+    publish::{PublishCertificate, PublishNotification, PublishVote},
+    Root,
+};
 use statistical::{mean, standard_deviation};
 use std::time::Instant;
 use storage::akd_storage::AkdStorage;

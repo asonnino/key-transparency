@@ -1,13 +1,14 @@
-use crate::error::{MessageError, MessageResult};
-use crate::{deserialize_root, ensure, serialize_root, Blake3, Root, SequenceNumber};
+use crate::{
+    deserialize_root, ensure,
+    error::{MessageError, MessageResult},
+    serialize_root, Blake3, Root, SequenceNumber,
+};
 use akd::proof_structs::AppendOnlyProof;
 use config::Committee;
 use crypto::{Digest, KeyPair, PublicKey, Signature};
-use ed25519_dalek::Digest as _;
-use ed25519_dalek::Sha512;
+use ed25519_dalek::{Digest as _, Sha512};
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
-use std::convert::TryInto;
+use std::{collections::HashSet, convert::TryInto};
 use winter_crypto::Digest as _;
 
 /// Represents a state proof.

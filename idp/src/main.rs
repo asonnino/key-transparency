@@ -2,8 +2,7 @@ use anyhow::{Context, Result};
 use clap::{arg, crate_name, crate_version, Arg, Command};
 use config::{Committee, Import, PrivateConfig};
 use idp::spawn_idp;
-use storage::akd_storage::AkdStorage;
-use storage::Storage;
+use storage::{akd_storage::AkdStorage, Storage};
 
 /// The default maximum delay before sealing a batch (in ms).
 const DEFAULT_MAX_BATCH_DELAY: u64 = 5_000;

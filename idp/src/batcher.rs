@@ -1,9 +1,11 @@
 use bytes::Bytes;
 use log::{debug, warn};
 use messages::update::Batch;
-use tokio::sync::mpsc::{Receiver, Sender};
-use tokio::task::JoinHandle;
-use tokio::time::{sleep, Duration, Instant};
+use tokio::{
+    sync::mpsc::{Receiver, Sender},
+    task::JoinHandle,
+    time::{sleep, Duration, Instant},
+};
 
 /// Assemble clients requests into batches.
 pub struct Batcher {
