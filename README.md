@@ -26,7 +26,7 @@ pip install -r requirements.txt
 
 You also need to install Clang (required by rocksdb) and [tmux](https://linuxize.com/post/getting-started-with-tmux/#installing-tmux) (which runs all nodes and clients in the background). Finally, run a local benchmark using fabric:
 
-```bash
+```
 fab local
 ```
 
