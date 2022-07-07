@@ -1,4 +1,4 @@
-# Key Transparency
+# SYSNAME
 
 [![build status](https://img.shields.io/github/workflow/status/asonnino/key-transparency/Rust/master?style=flat-square&logo=github)](https://github.com/asonnino/key-transparency/actions)
 [![rustc](https://img.shields.io/badge/rustc-1.64+-blue?style=flat-square&logo=rust)](https://www.rust-lang.org)
