@@ -1,5 +1,8 @@
 from json import load, JSONDecodeError
+import os
 
+USER_HOME_CMD = "$HOME"
+USER_NAME_CMD = "$USER"
 
 class SettingsError(Exception):
     pass
@@ -24,8 +27,11 @@ class Settings:
 
         self.testbed = testbed
 
-        self.key_name = key_name
-        self.key_path = key_path
+        self.key_name = convert_from_user_specific(key_name)
+        self.key_path = convert_from_user_specific(key_path)
+
+        print("Key name: " + self.key_name)
+        print("Key path: " + self.key_path)
 
         self.base_port = base_port
 
@@ -58,3 +64,16 @@ class Settings:
 
         except KeyError as e:
             raise SettingsError(f'Malformed settings: missing key {e}')
+
+def convert_from_user_specific(name_or_path):
+    cmds_to_replace = [USER_HOME_CMD, USER_NAME_CMD]
+    return replace_cmd_with_env(name_or_path, cmds_to_replace)
+
+def replace_cmd_with_env(name_or_path, cmds):
+    to_ret = name_or_path
+    # Replace each cmd with their env equivalent, e.g., $USER should become eoz.
+    for cmd in cmds:
+        # Trim $, e.g., $HOME -> HOME
+        env = cmd.replace('$', '')
+        to_ret = to_ret.replace(cmd, os.environ.get(env))
+    return to_ret
