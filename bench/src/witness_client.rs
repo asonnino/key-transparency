@@ -1,13 +1,10 @@
 mod utils;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, ensure, Context, Result};
 use clap::{arg, crate_name, crate_version, Arg, Command};
 use config::{Committee, Import, PrivateConfig};
 use crypto::KeyPair;
-use futures::{
-    future::join_all,
-    stream::{futures_unordered::FuturesUnordered, StreamExt},
-};
+use futures::stream::{futures_unordered::FuturesUnordered, StreamExt};
 use log::{debug, info, warn};
 use messages::WitnessToIdPMessage;
 use network::reliable_sender::ReliableSender;
@@ -29,6 +26,7 @@ async fn main() -> Result<()> {
             arg!(--idp <FILE> "The keypair of the IdP"),
             arg!(--committee <FILE> "The path to the committee file"),
             arg!(--rate <INT> "The rate (txs/s) at which to send the transactions"),
+            arg!(--faults [INT] "The number of crash-faults"),
             arg!(--proof_entries <INT> "The number of key updates per proof"),
         ])
         .arg_required_else_help(true)
@@ -59,6 +57,16 @@ async fn main() -> Result<()> {
         .parse::<u64>()
         .context("The rate of transactions must be a non-negative integer")?;
 
+    let faults = matches
+        .value_of("faults")
+        .unwrap_or("0")
+        .parse::<usize>()
+        .context("The number of crash-faults must be a non-negative integer")?;
+    ensure!(
+        faults < committee.size(),
+        anyhow!("The number of faults should be less than the committee size")
+    );
+
     let proof_entries = matches
         .value_of("proof_entries")
         .unwrap()
@@ -66,7 +74,7 @@ async fn main() -> Result<()> {
         .context("The number of key updates per proof must be a non-negative integer")?;
 
     // Make a benchmark client.
-    let client = BenchmarkClient::new(idp.secret, committee, rate, proof_entries);
+    let client = BenchmarkClient::new(idp.secret, committee, rate, faults, proof_entries);
     client.print_parameters();
 
     // Wait for all nodes to be online and synchronized.
@@ -87,6 +95,8 @@ pub struct BenchmarkClient {
     committee: Committee,
     /// The number of requests per seconds that this client submits.
     rate: u64,
+    /// The number of crash-faults.
+    faults: usize,
     /// The number of key updates per proof.
     proof_entries: u64,
     /// The network address of the witnesses.
@@ -95,7 +105,13 @@ pub struct BenchmarkClient {
 
 impl BenchmarkClient {
     /// Creates a new benchmark client.
-    pub fn new(idp: KeyPair, committee: Committee, rate: u64, proof_entries: u64) -> Self {
+    pub fn new(
+        idp: KeyPair,
+        committee: Committee,
+        rate: u64,
+        faults: usize,
+        proof_entries: u64,
+    ) -> Self {
         let targets: Vec<_> = committee
             .witnesses_addresses()
             .into_iter()
@@ -106,6 +122,7 @@ impl BenchmarkClient {
             idp,
             committee,
             rate,
+            faults,
             proof_entries,
             targets,
         }
@@ -124,19 +141,29 @@ impl BenchmarkClient {
     /// Wait for all authorities to be online.
     pub async fn wait(&self) {
         info!("Waiting for all witnesses to be online...");
-        join_all(
-            self.committee
-                .witnesses_addresses()
-                .into_iter()
-                .map(|(_, address)| {
-                    tokio::spawn(async move {
-                        while TcpStream::connect(address).await.is_err() {
-                            sleep(Duration::from_millis(10)).await;
-                        }
-                    })
-                }),
-        )
-        .await;
+        let mut futures: FuturesUnordered<_> = self
+            .committee
+            .witnesses_addresses()
+            .into_iter()
+            .chain(std::iter::once((
+                self.committee.idp.name,
+                self.committee.idp.address,
+            )))
+            .map(|(_, address)| async move {
+                while TcpStream::connect(address).await.is_err() {
+                    sleep(Duration::from_millis(10)).await;
+                }
+            })
+            .collect();
+
+        let expected_nodes = self.committee.size() - self.faults;
+        let mut online = 0;
+        while futures.next().await.is_some() {
+            online += 1;
+            if online == expected_nodes {
+                break;
+            }
+        }
     }
 
     /// Run a benchmark with the provided parameters.

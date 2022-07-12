@@ -1,5 +1,5 @@
 use akd::{AkdLabel, AkdValue};
-use anyhow::{Context, Result, ensure, anyhow};
+use anyhow::{anyhow, ensure, Context, Result};
 use bytes::{BufMut, Bytes, BytesMut};
 use clap::{arg, crate_name, crate_version, Arg, Command};
 use config::{Committee, Import};
@@ -63,7 +63,10 @@ async fn main() -> Result<()> {
         .unwrap_or("0")
         .parse::<usize>()
         .context("The number of crash-faults must be a non-negative integer")?;
-    ensure!(faults < committee.size(), anyhow!("The number of faults should be less than the committee size"));
+    ensure!(
+        faults < committee.size(),
+        anyhow!("The number of faults should be less than the committee size")
+    );
 
     // Make a benchmark client.
     let client = BenchmarkClient::new(committee, rate, size, faults);
@@ -88,7 +91,7 @@ pub struct BenchmarkClient {
     /// The size of an update (key + value).
     size: usize,
     /// The number of crash-faults.
-    faults: usize
+    faults: usize,
 }
 
 impl BenchmarkClient {
@@ -98,7 +101,7 @@ impl BenchmarkClient {
             committee,
             rate,
             size,
-            faults
+            faults,
         }
     }
 
@@ -112,18 +115,17 @@ impl BenchmarkClient {
     /// Wait for all authorities to be online.
     pub async fn wait(&self) {
         info!("Waiting for the IdP and all witnesses to be online...");
-        let mut futures: FuturesUnordered<_> = self.committee
+        let mut futures: FuturesUnordered<_> = self
+            .committee
             .witnesses_addresses()
             .into_iter()
             .chain(std::iter::once((
                 self.committee.idp.name,
                 self.committee.idp.address,
             )))
-            .map(|(_, address)| {
-                async move {
-                    while TcpStream::connect(address).await.is_err() {
-                        sleep(Duration::from_millis(10)).await;
-                    }
+            .map(|(_, address)| async move {
+                while TcpStream::connect(address).await.is_err() {
+                    sleep(Duration::from_millis(10)).await;
                 }
             })
             .collect();
