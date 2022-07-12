@@ -81,6 +81,7 @@ class LocalBench:
                 self.witness_only,
                 PathMaker.committee_file(),
                 rate,
+                self.faults,
                 idp_key_file,
                 self.batch_size,
                 debug
@@ -103,7 +104,7 @@ class LocalBench:
                 self._background_run(cmd, log_file)
 
             # Run the shards (except the faulty ones).
-            for i in range(nodes):
+            for i in range(len(committee.addresses(self.faults))):
                 cmd = CommandMaker.run_witness(
                     PathMaker.key_file(i),
                     PathMaker.committee_file(),

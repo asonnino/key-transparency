@@ -1,12 +1,9 @@
 use akd::{AkdLabel, AkdValue};
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, ensure, anyhow};
 use bytes::{BufMut, Bytes, BytesMut};
 use clap::{arg, crate_name, crate_version, Arg, Command};
 use config::{Committee, Import};
-use futures::{
-    future::join_all,
-    stream::{futures_unordered::FuturesUnordered, StreamExt},
-};
+use futures::stream::{futures_unordered::FuturesUnordered, StreamExt};
 use log::{info, warn};
 use network::reliable_sender::ReliableSender;
 use tokio::{
@@ -28,6 +25,7 @@ async fn main() -> Result<()> {
             arg!(--committee <FILE> "The path to the committee file"),
             arg!(--rate <INT> "The rate (txs/s) at which to send the transactions"),
             arg!(--size [INT] "The size (B) of an update key + value"),
+            arg!(--faults [INT] "The number of crash-faults"),
         ])
         .arg_required_else_help(true)
         .get_matches();
@@ -60,8 +58,15 @@ async fn main() -> Result<()> {
         .parse::<usize>()
         .context("The size of update requests must be a non-negative integer")?;
 
+    let faults = matches
+        .value_of("faults")
+        .unwrap_or("0")
+        .parse::<usize>()
+        .context("The number of crash-faults must be a non-negative integer")?;
+    ensure!(faults < committee.size(), anyhow!("The number of faults should be less than the committee size"));
+
     // Make a benchmark client.
-    let client = BenchmarkClient::new(committee, rate, size);
+    let client = BenchmarkClient::new(committee, rate, size, faults);
     client.print_parameters();
 
     // Wait for all nodes to be online and synchronized.
@@ -82,15 +87,18 @@ pub struct BenchmarkClient {
     rate: u64,
     /// The size of an update (key + value).
     size: usize,
+    /// The number of crash-faults.
+    faults: usize
 }
 
 impl BenchmarkClient {
     /// Creates a new benchmark client.
-    pub fn new(committee: Committee, rate: u64, size: usize) -> Self {
+    pub fn new(committee: Committee, rate: u64, size: usize, faults: usize) -> Self {
         Self {
             committee,
             rate,
             size,
+            faults
         }
     }
 
@@ -104,25 +112,30 @@ impl BenchmarkClient {
     /// Wait for all authorities to be online.
     pub async fn wait(&self) {
         info!("Waiting for the IdP and all witnesses to be online...");
-        join_all(
-            self.committee
-                .witnesses_addresses()
-                .into_iter()
-                .chain(std::iter::once((
-                    self.committee.idp.name,
-                    self.committee.idp.address,
-                )))
-                .map(|(_, address)| {
-                    tokio::spawn(async move {
-                        info!("Waiting for {}", address);
-                        while TcpStream::connect(address).await.is_err() {
-                            sleep(Duration::from_millis(10)).await;
-                        }
-                        info!("Done - Waiting for {}", address);
-                    })
-                }),
-        )
-        .await;
+        let mut futures: FuturesUnordered<_> = self.committee
+            .witnesses_addresses()
+            .into_iter()
+            .chain(std::iter::once((
+                self.committee.idp.name,
+                self.committee.idp.address,
+            )))
+            .map(|(_, address)| {
+                async move {
+                    while TcpStream::connect(address).await.is_err() {
+                        sleep(Duration::from_millis(10)).await;
+                    }
+                }
+            })
+            .collect();
+
+        let expected_nodes = self.committee.size() - self.faults;
+        let mut online = 0;
+        while futures.next().await.is_some() {
+            online += 1;
+            if online == expected_nodes {
+                break;
+            }
+        }
     }
 
     /// Run a benchmark with the provided parameters.

@@ -56,7 +56,7 @@ class CommandMaker:
         )
 
     @staticmethod
-    def run_client(witness_only, committee, rate, idp=None, proof_entries=None, debug=False):
+    def run_client(witness_only, committee, rate, faults, idp=None, proof_entries=None, debug=False):
         assert isinstance(witness_only, bool)
         assert isinstance(committee, str)
         assert isinstance(rate, int)
@@ -66,11 +66,11 @@ class CommandMaker:
         v = '-vvv' if debug else '-vv'
         if witness_only:
             return (
-                f'./witness_client {v} --idp {idp} --rate {rate} '
+                f'./witness_client {v} --idp {idp} --rate {rate} --faults {faults} '
                 f'--committee {committee} --proof_entries {proof_entries}'
             )
         else:
-            return f'./idp_client {v} --rate {rate} --committee {committee}'
+            return f'./idp_client {v} --rate {rate} --committee {committee} --faults {faults}'
 
     @staticmethod
     def kill():

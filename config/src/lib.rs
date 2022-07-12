@@ -80,6 +80,11 @@ pub struct Committee {
 impl Import for Committee {}
 
 impl Committee {
+    /// Return the number of witnesses.
+    pub fn size(&self) -> usize {
+        self.witnesses.len()
+    }
+
     /// Return the voting power of a specific witness.
     pub fn voting_power(&self, name: &PublicKey) -> VotingPower {
         self.witnesses

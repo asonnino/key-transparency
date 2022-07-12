@@ -211,6 +211,7 @@ class Bench:
             bench_parameters.witness_only,
             PathMaker.committee_file(),
             rate,
+            bench_parameters.faults,
             PathMaker.idp_key_file(),
             bench_parameters.batch_size,
             debug
