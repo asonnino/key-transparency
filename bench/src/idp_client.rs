@@ -114,9 +114,11 @@ impl BenchmarkClient {
                 )))
                 .map(|(_, address)| {
                     tokio::spawn(async move {
+                        info!("Waiting for {}", address);
                         while TcpStream::connect(address).await.is_err() {
                             sleep(Duration::from_millis(10)).await;
                         }
+                        info!("Done - Waiting for {}", address);
                     })
                 }),
         )
