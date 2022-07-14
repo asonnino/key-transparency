@@ -20,20 +20,20 @@ const RUNS: usize = 10;
 const PRECISION: usize = 100;
 
 /// The number of key-values pair in the state tree.
-const DEFAULT_TREE_ENTRIES: u64 = 1_000;
+const DEFAULT_NUM_TREE_ENTRIES: u64 = 1_000;
 
 /// Run micro-benchmarks for every CPU-intensive operation.
 fn main() {
     let args: Vec<String> = std::env::args().collect();
-    let tree_entries = match args.len() {
-        x if x > 1 => args[1].parse().unwrap_or(DEFAULT_TREE_ENTRIES),
-        _ => DEFAULT_TREE_ENTRIES,
+    let num_tree_entries = match args.len() {
+        x if x > 1 => args[1].parse().unwrap_or(DEFAULT_NUM_TREE_ENTRIES),
+        _ => DEFAULT_NUM_TREE_ENTRIES,
     };
     println!("Starting micro-benchmarks:");
 
     // Run all micro-benchmarks.
-    create_notification(tree_entries);
-    verify_notification(tree_entries);
+    create_notification(num_tree_entries);
+    verify_notification(num_tree_entries);
     create_vote();
     verify_vote();
     aggregate_certificate();
@@ -73,7 +73,7 @@ where
 
 /// Benchmark the creation of a publish notification.
 fn create_notification(tree_entries: u64) {
-    let akd_storage_path = ".micro_benchmark_adk_storage";
+    let akd_storage_path = ".micro_benchmark_akd_storage";
     struct Data(KeyPair);
 
     let setup = || {

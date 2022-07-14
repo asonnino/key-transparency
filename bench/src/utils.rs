@@ -23,7 +23,7 @@ pub async fn proof(entries: u64) -> (Root, Root, Proof) {
 }
 
 /// Create a publish proof from a tree with the specified number of key-value pairs and storage.
-pub async fn proof_with_storage<AkdStorage>(entries: u64, db: AkdStorage) -> (Root, Root, Proof)
+pub async fn proof_with_storage<AkdStorage>(num_entries: u64, db: AkdStorage) -> (Root, Root, Proof)
 where
     AkdStorage: akd::storage::Storage + Sync + Send + 'static,
 {
@@ -31,7 +31,7 @@ where
     let size = 32;
     let mut key = BytesMut::with_capacity(size);
     let mut value = BytesMut::with_capacity(size);
-    let items: Vec<_> = (0..entries)
+    let items: Vec<_> = (0..num_entries)
         .map(|i| {
             key.put_u64(i);
             key.resize(size, 0u8);
