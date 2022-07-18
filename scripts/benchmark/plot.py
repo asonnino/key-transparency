@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as tick
 from glob import glob
 from itertools import cycle
+import math
 
 from benchmark.utils import PathMaker
 from benchmark.config import PlotParameters
@@ -102,11 +103,12 @@ class Ploter:
 
     @staticmethod
     def nodes(data):
-        batch_size = search(r'Batch size: (\d+)', data).group(1)
+        batch_size = int(search(r'Batch size: (\d+)', data).group(1))
         x = search(r'Committee size: (\d+)', data).group(1)
         f = search(r'Faults: (\d+)', data).group(1)
         faults = f' - {f} faulty' if f != '0' else ''
-        return f'{x} nodes (batch size: {batch_size}){faults}'
+        return f'{x} nodes (batch: 2^{int(math.log2(batch_size))}){faults}'
+        return f'{x} nodes{faults}'
 
     @staticmethod
     def shards(data):
@@ -136,14 +138,14 @@ class Ploter:
         )
 
     @classmethod
-    def plot_tps(cls, files, scalability):
+    def plot_tps(cls, files, scalability, y_max=None):
         assert isinstance(files, list)
         assert all(isinstance(x, str) for x in files)
         z_axis = cls.max_latency
         x_label = 'Shards per authority' if scalability else 'Committee size'
         y_label = ['Throughput (tx/s)']
         ploter = cls(files)
-        ploter._plot(x_label, y_label, ploter._tps, z_axis, 'tps', y_max=None)
+        ploter._plot(x_label, y_label, ploter._tps, z_axis, 'tps', y_max)
 
     @classmethod
     def plot(cls, params_dict):
@@ -154,38 +156,56 @@ class Ploter:
 
         # Aggregate the logs.
         LogAggregator(params.max_latency).print()
-
-        # Make the latency, tps, and robustness graphs.
-        iterator = params.shards if params.scalability() else params.nodes
-        latency_files, tps_files = [], []
-        for f in params.faults:
-            for x in iterator:
-                latency_files += glob(
-                    PathMaker.agg_file(
-                        'latency',
-                        f,
-                        x if not params.scalability() else params.nodes[0],
-                        x if params.scalability() else params.shards[0],
-                        params.collocate,
-                        'any',
-                        params.batch_size,
+ 
+        if len(params.batch_size) > 1:
+            latency_files = []
+            for batch_size in params.batch_size:
+                for x in params.nodes:
+                    latency_files += glob(
+                        PathMaker.agg_file(
+                            'latency',
+                            0,
+                            x,
+                            params.shards[0],
+                            params.collocate,
+                            'any',
+                            batch_size,
+                        )
                     )
-                )
 
-            for l in params.max_latency:
-                tps_files += glob(
-                    PathMaker.agg_file(
-                        'tps',
-                        f,
-                        'x' if not params.scalability() else params.nodes[0],
-                        'x' if params.scalability() else params.shards[0],
-                        params.collocate,
-                        'any',
-                        params.batch_size,
-                        max_latency=l,
+            cls.plot_latency(latency_files, params.scalability(), params.y_max)
+
+        else:
+            # Make the latency and tps.
+            iterator = params.shards if params.scalability() else params.nodes
+            latency_files, tps_files = [], []
+            for f in params.faults:
+                for x in iterator:
+                    latency_files += glob(
+                        PathMaker.agg_file(
+                            'latency',
+                            f,
+                            x if not params.scalability() else params.nodes[0],
+                            x if params.scalability() else params.shards[0],
+                            params.collocate,
+                            'any',
+                            params.batch_size[0],
+                        )
                     )
-                )
 
-        y_max = 30_000
-        cls.plot_latency(latency_files, params.scalability(), y_max)
-        cls.plot_tps(tps_files, params.scalability())
+                for l in params.max_latency:
+                    tps_files += glob(
+                        PathMaker.agg_file(
+                            'tps',
+                            f,
+                            'x' if not params.scalability() else params.nodes[0],
+                            'x' if params.scalability() else params.shards[0],
+                            params.collocate,
+                            'any',
+                            params.batch_size[0],
+                            max_latency=l,
+                        )
+                    )
+
+            cls.plot_latency(latency_files, params.scalability(), params.y_max)
+            cls.plot_tps(tps_files, params.scalability(), params.y_max)

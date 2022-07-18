@@ -179,7 +179,11 @@ class PlotParameters:
                 raise ConfigError('Missing number of nodes')
             self.nodes = [int(x) for x in nodes]
 
-            self.batch_size = int(json['batch_size'])
+            batch_size = json['batch_size']
+            batch_size = batch_size if isinstance(batch_size, list) else [batch_size]
+            if not batch_size:
+                raise ConfigError('Missing batch size')
+            self.batch_size = [int(x) for x in batch_size]
 
             shards = json['shards'] if 'shards' in json else [1]
             shards = shards if isinstance(shards, list) else [shards]
@@ -195,6 +199,11 @@ class PlotParameters:
             if not max_lat:
                 raise ConfigError('Missing max latency')
             self.max_latency = [int(x) for x in max_lat]
+
+            if 'y_max' in json:
+                self.y_max = int(json['y_max'])
+            else:
+                self.y_max = None
 
         except KeyError as e:
             raise ConfigError(f'Malformed bench parameters: missing key {e}')
