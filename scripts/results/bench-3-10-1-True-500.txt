@@ -1,0 +1,63 @@
+
+-----------------------------------------
+ SUMMARY:
+-----------------------------------------
+ + CONFIG:
+ Faults: 3 node(s)
+ Committee size: 10 node(s)
+ Shard(s) per node: 1 shard(s)
+ Collocate shards: True
+ Batch size: 1024
+ Input rate: 500 tx/s
+ Execution time: 302 s
+
+ + RESULTS:
+ Client TPS: 0 tx/s
+ Client latency: 0 ms
+ IdP TPS: 495 tx/s
+ IdP latency: 3,335 ms
+ End-to-end TPS: 495 tx/s
+ End-to-end latency: 3,427 ms
+-----------------------------------------
+
+-----------------------------------------
+ SUMMARY:
+-----------------------------------------
+ + CONFIG:
+ Faults: 3 node(s)
+ Committee size: 10 node(s)
+ Shard(s) per node: 1 shard(s)
+ Collocate shards: True
+ Batch size: 1024
+ Input rate: 500 tx/s
+ Execution time: 302 s
+
+ + RESULTS:
+ Client TPS: 0 tx/s
+ Client latency: 0 ms
+ IdP TPS: 495 tx/s
+ IdP latency: 3,302 ms
+ End-to-end TPS: 495 tx/s
+ End-to-end latency: 3,394 ms
+-----------------------------------------
+
+-----------------------------------------
+ SUMMARY:
+-----------------------------------------
+ + CONFIG:
+ Faults: 3 node(s)
+ Committee size: 10 node(s)
+ Shard(s) per node: 1 shard(s)
+ Collocate shards: True
+ Batch size: 1024
+ Input rate: 500 tx/s
+ Execution time: 302 s
+
+ + RESULTS:
+ Client TPS: 0 tx/s
+ Client latency: 0 ms
+ IdP TPS: 495 tx/s
+ IdP latency: 3,274 ms
+ End-to-end TPS: 495 tx/s
+ End-to-end latency: 3,366 ms
+-----------------------------------------
