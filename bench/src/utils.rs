@@ -6,7 +6,6 @@ use akd::{
     storage::{
         memory::AsyncInMemoryDatabase,
         types::{AkdLabel, AkdValue},
-        Storage,
     },
 };
 use bytes::{BufMut, Bytes, BytesMut};
@@ -16,11 +15,6 @@ use messages::{
     publish::{Proof, PublishCertificate, PublishNotification, PublishVote},
     Blake3, IdPToWitnessMessage, Root,
 };
-
-use std::fs;
-
-use crate::AKD_STORAGE_PATH;
-use storage::akd_storage::AkdStorage;
 
 // The size of the AkdLabel and AkdValue
 const LABEL_VALUE_SIZE_BYTES: usize = 32;

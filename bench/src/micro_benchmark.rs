@@ -1,7 +1,6 @@
 mod utils;
 
 use akd::storage::memory::AsyncInMemoryDatabase;
-use akd::storage::Storage;
 use akd::AkdLabel;
 use akd::AkdValue;
 use config::Committee;
