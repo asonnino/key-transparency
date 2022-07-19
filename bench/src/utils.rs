@@ -89,7 +89,7 @@ where
     let key_entries = generate_key_entries(num_key_entries);
     akd.publish::<Blake3>(key_entries).await.unwrap();
 
-    // More detailed stats.
+    // Display storage stats.
     println!("Number of key entries: {}", num_key_entries);
     db.log_metrics(log::Level::Debug).await;
 }
