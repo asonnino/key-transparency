@@ -1,8 +1,8 @@
 {
-    "testbed": "key-transparency",
+    "testbed": "alberto-key-transparency",
     "key": {
-        "name": "$USER-aws",
-        "path": "$HOME/.ssh/$USER-aws"
+        "name": "aws",
+        "path": "$HOME/.ssh/aws"
     },
     "port": 5000,
     "repo": {
