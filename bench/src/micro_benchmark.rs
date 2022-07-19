@@ -50,10 +50,8 @@ fn main() {
     verify_certificate();
     publish_with_different_batch_sizes(true);
     publish_with_different_batch_sizes(false);
-    // AsyncInMemoryDatabase doesn't implement a useful log_metrics at the moment.
-    // AsyncInMemoryDatabase does implement one (print_stats) but it is compiled with the public-tests feature
-    // and requires changes to the AKD library implementation of it to actually print it in log_metrics.
-    storage_stats_with_different_batch_sizes(true);
+    // AKD in-memory storage implementations don't have stats as of now. Disabling this one.
+    // storage_stats_with_different_batch_sizes(true);
     // RocksDB stats.
     storage_stats_with_different_batch_sizes(false);
 }
