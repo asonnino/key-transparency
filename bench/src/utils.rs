@@ -16,6 +16,9 @@ use messages::{
     Blake3, IdPToWitnessMessage, Root,
 };
 
+// The size of the AkdLabel and AkdValue
+const LABEL_VALUE_SIZE_BYTES: usize = 32;
+
 /// Create a publish proof from a tree with the specified number of key-value pairs and an in-memory storage.
 pub async fn proof(entries: u64) -> (Root, Root, Proof) {
     let db = AsyncInMemoryDatabase::new();
@@ -23,27 +26,12 @@ pub async fn proof(entries: u64) -> (Root, Root, Proof) {
 }
 
 /// Create a publish proof from a tree with the specified number of key-value pairs and storage.
-pub async fn proof_with_storage<AkdStorage>(entries: u64, db: AkdStorage) -> (Root, Root, Proof)
+pub async fn proof_with_storage<AkdStorage>(num_entries: u64, db: AkdStorage) -> (Root, Root, Proof)
 where
     AkdStorage: akd::storage::Storage + Sync + Send + 'static,
 {
-    // Create the list of 64-bytes key-value pairs (in memory).
-    let size = 32;
-    let mut key = BytesMut::with_capacity(size);
-    let mut value = BytesMut::with_capacity(size);
-    let items: Vec<_> = (0..entries)
-        .map(|i| {
-            key.put_u64(i);
-            key.resize(size, 0u8);
-            let k = key.split().freeze();
-
-            value.put_u64(i);
-            value.resize(size, 0u8);
-            let v = value.split().freeze();
-
-            (AkdLabel(k.to_vec()), AkdValue(v.to_vec()))
-        })
-        .collect();
+    // Create the list of key-value pairs (in memory).
+    let key_entries = generate_key_entries(num_entries);
 
     // Create a test tree with the specified number of key-values.
     let vrf = HardCodedAkdVRF {};
@@ -56,7 +44,7 @@ where
         .await
         .unwrap();
 
-    akd.publish::<Blake3>(items).await.unwrap();
+    akd.publish::<Blake3>(key_entries).await.unwrap();
 
     let current_azks = akd.retrieve_current_azks().await.unwrap();
     let end = akd
@@ -67,6 +55,60 @@ where
     // Generate the audit proof.
     let proof = akd.audit::<Blake3>(0, 1).await.unwrap();
     (start, end, proof)
+}
+
+/// Performs a publish with number of key-value pairs. Pair creation must be done outside
+/// of this function to *only* measure the publish time.
+/// Note that the measurements WILL include directory creation times which should not
+/// affect performance too much.
+pub async fn publish_with_storage<AkdStorage>(
+    key_entries: Vec<(AkdLabel, AkdValue)>,
+    db: AkdStorage,
+) where
+    AkdStorage: akd::storage::Storage + Sync + Send,
+{
+    let vrf = HardCodedAkdVRF {};
+    let akd = Directory::new::<Blake3>(&db, &vrf, false).await.unwrap();
+
+    akd.publish::<Blake3>(key_entries).await.unwrap();
+}
+
+/// Performs a publish operation with given number of key entries and prints the
+/// storage stats. It is not meant to be used in benches.
+pub async fn publish_with_storage_stats<AkdStorage>(num_key_entries: u64, db: AkdStorage)
+where
+    AkdStorage: akd::storage::Storage + Sync + Send,
+{
+    // Setup
+    let vrf = HardCodedAkdVRF {};
+    let akd = Directory::new::<Blake3>(&db, &vrf, false).await.unwrap();
+
+    // Generate keys and publish.
+    // It is okay to include key generation here since this function
+    // is not used in benches per-se but used for obtaining storage stats.
+    let key_entries = generate_key_entries(num_key_entries);
+    akd.publish::<Blake3>(key_entries).await.unwrap();
+
+    // Display storage stats.
+    println!("Number of key entries: {}", num_key_entries);
+    db.log_metrics(log::Level::Debug).await;
+}
+
+pub fn generate_key_entries(num_entries: u64) -> Vec<(AkdLabel, AkdValue)> {
+    let mut label = BytesMut::with_capacity(LABEL_VALUE_SIZE_BYTES);
+    let mut value = BytesMut::with_capacity(LABEL_VALUE_SIZE_BYTES);
+
+    (0..num_entries)
+        .map(|i| {
+            label.put_u64(i);
+            let l = label.split().freeze();
+
+            value.put_u64(i);
+            let v = value.split().freeze();
+
+            (AkdLabel(l.to_vec()), AkdValue(v.to_vec()))
+        })
+        .collect()
 }
 
 /// Make dumb (but valid) publish notifications.

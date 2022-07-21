@@ -40,7 +40,9 @@ impl Clone for AkdStorage {
 
 #[async_trait]
 impl akd::storage::Storage for AkdStorage {
-    async fn log_metrics(&self, _level: log::Level) {}
+    async fn log_metrics(&self, _level: log::Level) {
+       self.database.read().await.log_metrics();
+    }
 
     async fn begin_transaction(&self) -> bool {
         self.transaction.begin_transaction().await
@@ -120,7 +122,9 @@ impl akd::storage::Storage for AkdStorage {
         AkdStorage::get::<St>(self, id).await
     }
 
-    async fn flush_cache(&self) {}
+    async fn flush_cache(&self) {
+        self.database.read().await.flush_cache();
+    }
 
     async fn get_user_data(&self, _username: &AkdLabel) -> Result<KeyData, AkdStorageError> {
         unimplemented!()
