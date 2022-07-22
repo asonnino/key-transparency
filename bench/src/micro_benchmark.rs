@@ -30,7 +30,7 @@ const DEFAULT_PRECISION: u64 = 1;
 const DEFAULT_NUM_TREE_ENTRIES: u64 = 1_000;
 
 const KEY_ENTRY_BATCH_SIZES: &'static [u64] =
-    &[2_i32.pow(5), 2_i32.pow(7), 2_i32.pow(10), 2_i32.pow(15)];
+    &[2_u64.pow(5), 2_u64.pow(7), 2_u64.pow(10), 2_u64.pow(15)];
 
 /// Run micro-benchmarks for every CPU-intensive operation.
 fn main() {
