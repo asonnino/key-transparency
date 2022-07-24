@@ -177,6 +177,16 @@ fn storage_stats(num_tree_entries: u64, use_in_memory_db: bool) {
         let db = AkdStorage::new(AKD_STORAGE_PATH);
         block_on(publish_with_storage_stats(num_tree_entries, db));
 
+        // List files in the storage directory along with their sizes.
+        for file_path in std::fs::read_dir("./".to_owned() + AKD_STORAGE_PATH)
+            .unwrap()
+            .flatten()
+            .map(|f| f.path())
+        {
+            let metadata = std::fs::metadata(file_path.clone()).unwrap();
+            let file_size = metadata.len();
+            println!("File: {:?}, size: {} bytes.", file_path, file_size);
+        }
         // Clean up post-publish
         let _ = std::fs::remove_dir_all(&AKD_STORAGE_PATH);
     }
