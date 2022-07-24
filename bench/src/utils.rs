@@ -90,8 +90,10 @@ where
     akd.publish::<Blake3>(key_entries).await.unwrap();
 
     // Display storage stats.
+    println!("***********************************************************");
     println!("Number of key entries: {}", num_key_entries);
     db.log_metrics(log::Level::Debug).await;
+    println!("***********************************************************");
 }
 
 pub fn generate_key_entries(num_entries: u64) -> Vec<(AkdLabel, AkdValue)> {
