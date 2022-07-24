@@ -175,6 +175,7 @@ fn storage_stats(num_tree_entries: u64, use_in_memory_db: bool) {
         let _ = std::fs::remove_dir_all(&AKD_STORAGE_PATH);
 
         let db = AkdStorage::new(AKD_STORAGE_PATH);
+        println!("***********************************************************");
         block_on(publish_with_storage_stats(num_tree_entries, db));
 
         // List files in the storage directory along with their sizes.
@@ -187,6 +188,8 @@ fn storage_stats(num_tree_entries: u64, use_in_memory_db: bool) {
             let file_size = metadata.len();
             println!("File: {:?}, size: {} bytes.", file_path, file_size);
         }
+        println!("***********************************************************");
+
         // Clean up post-publish
         let _ = std::fs::remove_dir_all(&AKD_STORAGE_PATH);
     }
