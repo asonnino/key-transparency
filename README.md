@@ -9,7 +9,7 @@ This repo provides an prototype implementation of [BananaTree](), based on [akd]
 ## Quick Start
 
 The core protocols are written in Rust, but all benchmarking scripts are written in Python and run with [Fabric](http://www.fabfile.org/).
-To deploy and benchmark a testbed of 4 witnesse on your local machine, clone the repo and install the python dependencies:
+To deploy and benchmark a test bed of 4 witnesse on your local machine, clone the repo and install the python dependencies:
 
 ```bash
 git clone https://github.com/asonnino/key-transparency.git
