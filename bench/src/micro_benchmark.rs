@@ -1,5 +1,6 @@
 mod utils;
 
+use crate::utils::publish_multi_epoch;
 use akd::storage::memory::AsyncInMemoryDatabase;
 use akd::AkdLabel;
 use akd::AkdValue;
@@ -14,7 +15,7 @@ use statistical::{mean, standard_deviation};
 use std::time::Instant;
 use storage::akd_storage::AkdStorage;
 use test_utils::{certificate, committee, keys, notification, votes};
-use utils::{proof, proof_with_storage, publish_with_storage_stats};
+use utils::{display_file_sizes, proof, proof_with_storage, publish_with_storage_stats};
 
 use crate::utils::{generate_key_entries, publish_with_storage};
 
@@ -32,6 +33,11 @@ const DEFAULT_NUM_TREE_ENTRIES: u64 = 1_000;
 const KEY_ENTRY_BATCH_SIZES: &'static [u64] =
     &[2_u64.pow(5), 2_u64.pow(7), 2_u64.pow(10), 2_u64.pow(15)];
 
+/// Number of key entries in a large batch
+const LARGE_BATCH_SIZE: u64 = 10;
+
+const NUM_EPOCHS: u64 = 10;
+
 /// Run micro-benchmarks for every CPU-intensive operation.
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -41,19 +47,20 @@ fn main() {
     };
     println!("Starting micro-benchmarks:");
 
-    // Run all micro-benchmarks.
-    create_notification(num_tree_entries);
-    verify_notification(num_tree_entries);
-    create_vote();
-    verify_vote();
-    aggregate_certificate();
-    verify_certificate();
-    publish_with_different_batch_sizes(true);
-    publish_with_different_batch_sizes(false);
-    // AKD in-memory storage implementations don't have stats as of now. Disabling this one.
-    // storage_stats_with_different_batch_sizes(true);
-    // RocksDB stats.
-    storage_stats_with_different_batch_sizes(false);
+    // // Run all micro-benchmarks.
+    // create_notification(num_tree_entries);
+    // verify_notification(num_tree_entries);
+    // create_vote();
+    // verify_vote();
+    // aggregate_certificate();
+    // verify_certificate();
+    // publish_with_different_batch_sizes(true);
+    // publish_with_different_batch_sizes(false);
+    // // AKD in-memory storage implementations don't have stats as of now. Disabling this one.
+    // // storage_stats_with_different_batch_sizes(true);
+    // // RocksDB stats.
+    // storage_stats_with_different_batch_sizes(false);
+    block_on(publish_multi_epoch(LARGE_BATCH_SIZE, NUM_EPOCHS));
 }
 
 /// Run a single micro-benchmark.
@@ -176,18 +183,11 @@ fn storage_stats(num_tree_entries: u64, use_in_memory_db: bool) {
 
         let db = AkdStorage::new(AKD_STORAGE_PATH);
         println!("***********************************************************");
-        block_on(publish_with_storage_stats(num_tree_entries, db));
 
-        // List files in the storage directory along with their sizes.
-        for file_path in std::fs::read_dir("./".to_owned() + AKD_STORAGE_PATH)
-            .unwrap()
-            .flatten()
-            .map(|f| f.path())
-        {
-            let metadata = std::fs::metadata(file_path.clone()).unwrap();
-            let file_size = metadata.len();
-            println!("File: {:?}, size: {} bytes.", file_path, file_size);
-        }
+        block_on(publish_with_storage_stats(num_tree_entries, db));
+        // Show storage stats.
+        display_file_sizes(&AKD_STORAGE_PATH);
+
         println!("***********************************************************");
 
         // Clean up post-publish
