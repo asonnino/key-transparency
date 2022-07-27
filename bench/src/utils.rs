@@ -142,7 +142,7 @@ pub async fn publish_multi_epoch(batch_size: u64, num_epoch: u64) {
     }
 
     // Clean up
-    let _ = std::fs::remove_dir_all(&MULTI_EPOCH_PUBLISH_STORAGE_DIR);
+    // let _ = std::fs::remove_dir_all(&MULTI_EPOCH_PUBLISH_STORAGE_DIR);
 }
 
 pub fn display_file_sizes(path_name: &str) {
