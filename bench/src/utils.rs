@@ -134,6 +134,9 @@ pub async fn publish_multi_epoch(batch_size: u64, num_epoch: u64) {
             publish_index_start, publish_index_end, elapsed
         );
 
+        // Flush cache + log metrics.
+        db.log_metrics(log::Level::Error).await;
+
         // Get storage usage
         display_file_sizes(MULTI_EPOCH_PUBLISH_STORAGE_DIR);
     }
@@ -143,6 +146,7 @@ pub async fn publish_multi_epoch(batch_size: u64, num_epoch: u64) {
 }
 
 pub fn display_file_sizes(path_name: &str) {
+    let mut total_file_size = 0;
     for file_path in std::fs::read_dir("./".to_owned() + path_name)
         .unwrap()
         .flatten()
@@ -151,7 +155,9 @@ pub fn display_file_sizes(path_name: &str) {
         let metadata = std::fs::metadata(file_path.clone()).unwrap();
         let file_size = metadata.len();
         println!("File: {:?}, size: {} bytes.", file_path, file_size);
+        total_file_size += file_size;
     }
+    println!("Total file size: {} bytes.", total_file_size);
 }
 
 pub fn generate_key_entries(num_entries: u64) -> Vec<(AkdLabel, AkdValue)> {
