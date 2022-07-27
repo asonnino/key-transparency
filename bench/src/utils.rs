@@ -1,11 +1,13 @@
 #![allow(dead_code)]
 
+use crate::AkdStorage;
 use akd::{
     directory::Directory,
     ecvrf::HardCodedAkdVRF,
     storage::{
         memory::AsyncInMemoryDatabase,
         types::{AkdLabel, AkdValue},
+        Storage,
     },
 };
 use bytes::{BufMut, Bytes, BytesMut};
@@ -15,6 +17,9 @@ use messages::{
     publish::{Proof, PublishCertificate, PublishNotification, PublishVote},
     Blake3, IdPToWitnessMessage, Root,
 };
+use std::time::Instant;
+
+const MULTI_EPOCH_PUBLISH_STORAGE_DIR: &str = ".multi_epoch_publish_akd_storage";
 
 // The size of the AkdLabel and AkdValue
 const LABEL_VALUE_SIZE_BYTES: usize = 32;
@@ -94,6 +99,67 @@ where
     db.log_metrics(log::Level::Debug).await;
 }
 
+pub async fn publish_multi_epoch(batch_size: u64, num_epoch: u64) {
+    // AKD Setup
+    let vrf = HardCodedAkdVRF {};
+    let db = AkdStorage::new(MULTI_EPOCH_PUBLISH_STORAGE_DIR);
+    let akd = Directory::new::<Blake3>(&db, &vrf, false).await.unwrap();
+
+    // Generate necessary keys
+    let key_entries = generate_key_entries(batch_size * num_epoch);
+
+    for epoch in 0..num_epoch {
+        // Determine which subset of keys to publish based on current epoch.
+        let publish_index_start: usize = (epoch * batch_size) as usize;
+        let publish_index_end: usize = (publish_index_start + (batch_size as usize)) as usize;
+        let key_entries_to_publish = &key_entries[publish_index_start..publish_index_end];
+
+        println!("***********************************************************");
+        // TODO(eoz): Remove for large batch sizes.
+        // println!(
+        //     "Key entries to publish in range [{}, {}]: {:?}",
+        //     publish_index_start, publish_index_end, key_entries_to_publish
+        // );
+
+        let now = Instant::now();
+        // Publish
+        akd.publish::<Blake3>(key_entries_to_publish.to_vec())
+            .await
+            .unwrap();
+
+        // Measure elapsed time for publish operation.
+        let elapsed = now.elapsed().as_millis() as f64;
+        println!(
+            "Elapsed time for publishing keys in range [{}, {}]: {} ms.",
+            publish_index_start, publish_index_end, elapsed
+        );
+
+        // Flush cache + log metrics.
+        db.log_metrics(log::Level::Error).await;
+
+        // Get storage usage
+        display_file_sizes(MULTI_EPOCH_PUBLISH_STORAGE_DIR);
+    }
+
+    // Clean up
+    // let _ = std::fs::remove_dir_all(&MULTI_EPOCH_PUBLISH_STORAGE_DIR);
+}
+
+pub fn display_file_sizes(path_name: &str) {
+    let mut total_file_size = 0;
+    for file_path in std::fs::read_dir("./".to_owned() + path_name)
+        .unwrap()
+        .flatten()
+        .map(|f| f.path())
+    {
+        let metadata = std::fs::metadata(file_path.clone()).unwrap();
+        let file_size = metadata.len();
+        println!("File: {:?}, size: {} bytes.", file_path, file_size);
+        total_file_size += file_size;
+    }
+    println!("Total file size: {} bytes.", total_file_size);
+}
+
 pub fn generate_key_entries(num_entries: u64) -> Vec<(AkdLabel, AkdValue)> {
     let mut label = BytesMut::with_capacity(LABEL_VALUE_SIZE_BYTES);
     let mut value = BytesMut::with_capacity(LABEL_VALUE_SIZE_BYTES);
@@ -101,9 +167,11 @@ pub fn generate_key_entries(num_entries: u64) -> Vec<(AkdLabel, AkdValue)> {
     (0..num_entries)
         .map(|i| {
             label.put_u64(i);
+            label.resize(LABEL_VALUE_SIZE_BYTES, 0u8);
             let l = label.split().freeze();
 
             value.put_u64(i);
+            value.resize(LABEL_VALUE_SIZE_BYTES, 0u8);
             let v = value.split().freeze();
 
             (AkdLabel(l.to_vec()), AkdValue(v.to_vec()))
