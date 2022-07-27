@@ -7,6 +7,7 @@ use akd::{
     storage::{
         memory::AsyncInMemoryDatabase,
         types::{AkdLabel, AkdValue},
+        Storage,
     },
 };
 use bytes::{BufMut, Bytes, BytesMut};
@@ -113,11 +114,12 @@ pub async fn publish_multi_epoch(batch_size: u64, num_epoch: u64) {
         let publish_index_end: usize = (publish_index_start + (batch_size as usize)) as usize;
         let key_entries_to_publish = &key_entries[publish_index_start..publish_index_end];
 
+        println!("***********************************************************");
         // TODO(eoz): Remove for large batch sizes.
-        println!(
-            "Key entries to publish in range [{}, {}]: {:?}",
-            publish_index_start, publish_index_end, key_entries_to_publish
-        );
+        // println!(
+        //     "Key entries to publish in range [{}, {}]: {:?}",
+        //     publish_index_start, publish_index_end, key_entries_to_publish
+        // );
 
         let now = Instant::now();
         // Publish
@@ -135,6 +137,9 @@ pub async fn publish_multi_epoch(batch_size: u64, num_epoch: u64) {
         // Get storage usage
         display_file_sizes(MULTI_EPOCH_PUBLISH_STORAGE_DIR);
     }
+
+    // Clean up
+    let _ = std::fs::remove_dir_all(&MULTI_EPOCH_PUBLISH_STORAGE_DIR);
 }
 
 pub fn display_file_sizes(path_name: &str) {
@@ -156,9 +161,11 @@ pub fn generate_key_entries(num_entries: u64) -> Vec<(AkdLabel, AkdValue)> {
     (0..num_entries)
         .map(|i| {
             label.put_u64(i);
+            label.resize(LABEL_VALUE_SIZE_BYTES, 0u8);
             let l = label.split().freeze();
 
             value.put_u64(i);
+            value.resize(LABEL_VALUE_SIZE_BYTES, 0u8);
             let v = value.split().freeze();
 
             (AkdLabel(l.to_vec()), AkdValue(v.to_vec()))
