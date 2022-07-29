@@ -30,11 +30,6 @@ const DEFAULT_NUM_TREE_ENTRIES: u64 = 1_024;
 const KEY_ENTRY_BATCH_SIZES: &'static [u64] =
     &[2_u64.pow(5), 2_u64.pow(7), 2_u64.pow(10), 2_u64.pow(15)];
 
-/// Number of key entries in a large batch
-const LARGE_BATCH_SIZE: u64 = 100_000;
-
-const NUM_EPOCHS: u64 = 100;
-
 /// Run micro-benchmarks for every CPU-intensive operation.
 fn main() {
     let args: Vec<String> = std::env::args().collect();
