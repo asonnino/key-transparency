@@ -1,13 +1,6 @@
 mod utils;
 
-<<<<<<< HEAD
-use crate::utils::publish_multi_epoch;
-use akd::storage::memory::AsyncInMemoryDatabase;
-use akd::AkdLabel;
-use akd::AkdValue;
-=======
 use akd::{storage::memory::AsyncInMemoryDatabase, AkdLabel, AkdValue};
->>>>>>> e5bebd9 (Fix rounding error)
 use config::Committee;
 use crypto::KeyPair;
 use futures::executor::block_on;
