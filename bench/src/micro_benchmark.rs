@@ -1,9 +1,13 @@
 mod utils;
 
+<<<<<<< HEAD
 use crate::utils::publish_multi_epoch;
 use akd::storage::memory::AsyncInMemoryDatabase;
 use akd::AkdLabel;
 use akd::AkdValue;
+=======
+use akd::{storage::memory::AsyncInMemoryDatabase, AkdLabel, AkdValue};
+>>>>>>> e5bebd9 (Fix rounding error)
 use config::Committee;
 use crypto::KeyPair;
 use futures::executor::block_on;
@@ -25,10 +29,10 @@ const AKD_STORAGE_PATH: &str = ".micro_benchmark_akd_storage";
 const DEFAULT_RUNS: u64 = 10;
 
 /// The default number measures to constitute a run (to smooth bootstrapping).
-const DEFAULT_PRECISION: u64 = 1;
+const DEFAULT_PRECISION: u64 = 5;
 
 /// The number of key-values pair in the state tree.
-const DEFAULT_NUM_TREE_ENTRIES: u64 = 1_000;
+const DEFAULT_NUM_TREE_ENTRIES: u64 = 1_024;
 
 const KEY_ENTRY_BATCH_SIZES: &'static [u64] =
     &[2_u64.pow(5), 2_u64.pow(7), 2_u64.pow(10), 2_u64.pow(15)];
@@ -47,20 +51,19 @@ fn main() {
     };
     println!("Starting micro-benchmarks:");
 
-    // // Run all micro-benchmarks.
-    // create_notification(num_tree_entries);
-    // verify_notification(num_tree_entries);
-    // create_vote();
-    // verify_vote();
-    // aggregate_certificate();
-    // verify_certificate();
-    // publish_with_different_batch_sizes(true);
-    // publish_with_different_batch_sizes(false);
-    // // AKD in-memory storage implementations don't have stats as of now. Disabling this one.
-    // // storage_stats_with_different_batch_sizes(true);
-    // // RocksDB stats.
-    // storage_stats_with_different_batch_sizes(false);
-    block_on(publish_multi_epoch(LARGE_BATCH_SIZE, NUM_EPOCHS));
+    // Run all micro-benchmarks.
+    create_notification(num_tree_entries);
+    verify_notification(num_tree_entries);
+    create_vote();
+    verify_vote();
+    aggregate_certificate();
+    verify_certificate();
+    publish_with_different_batch_sizes(true);
+    publish_with_different_batch_sizes(false);
+    // AKD in-memory storage implementations don't have stats as of now. Disabling this one.
+    storage_stats_with_different_batch_sizes(true);
+    // RocksDB stats.
+    storage_stats_with_different_batch_sizes(false);
 }
 
 /// Run a single micro-benchmark.
@@ -81,15 +84,15 @@ where
         for _ in 0..precision {
             let _result = run(&inputs);
         }
-        let elapsed = now.elapsed().as_millis() as f64;
+        let elapsed = now.elapsed().as_micros() as f64;
         data.push(elapsed / precision as f64);
     }
 
     // Display the results to stdout.
     println!(
         "  {:>7.2} +/- {:<5.2} ms {:.>50}",
-        mean(&data),
-        standard_deviation(&data, None),
+        mean(&data) / 1_000.0,
+        standard_deviation(&data, None) / 1_000.0,
         id
     );
 }
